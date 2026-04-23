@@ -1,4 +1,5 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useAuth } from '../hooks/useAuth'
 
 export const DASHBOARD_MUSIC_TRACKS = [
   { id: 'olha', label: 'Olha a Explosao', src: '/dashboard-audio/olha-a-explosao.mp3' },
@@ -24,13 +25,32 @@ function getNextTrackId(trackId) {
 }
 
 export function DashboardMusicProvider({ children }) {
+  const { loading, user } = useAuth()
   const audioRef = useRef(null)
+  const initialStartedForUserRef = useRef(null)
   const [selectedTrackId, setSelectedTrackId] = useState(getRandomTrackId)
   const [musicPlaying, setMusicPlaying] = useState(false)
+  const musicAllowed = Boolean(user?.id) && !loading
+
+  const stopTrack = useCallback((resetSource = false) => {
+    const audio = audioRef.current
+    if (!audio) return
+    audio.pause()
+    if (resetSource) {
+      audio.removeAttribute('src')
+      audio.load()
+    }
+    setMusicPlaying(false)
+  }, [])
 
   const playTrack = useCallback(async (trackId = selectedTrackId) => {
     const audio = audioRef.current
     if (!audio) return false
+
+    if (!musicAllowed) {
+      stopTrack(true)
+      return false
+    }
 
     const track = getTrackById(trackId)
     setSelectedTrackId(track.id)
@@ -47,40 +67,56 @@ export function DashboardMusicProvider({ children }) {
       setMusicPlaying(false)
       return false
     }
-  }, [selectedTrackId])
+  }, [musicAllowed, selectedTrackId, stopTrack])
 
   const playNextTrack = useCallback((trackId = selectedTrackId) => {
+    if (!musicAllowed) {
+      stopTrack(true)
+      return false
+    }
+
     const nextTrackId = getNextTrackId(trackId)
     return playTrack(nextTrackId)
-  }, [playTrack, selectedTrackId])
-
-  const stopTrack = useCallback(() => {
-    const audio = audioRef.current
-    if (!audio) return
-    audio.pause()
-    setMusicPlaying(false)
-  }, [])
+  }, [musicAllowed, playTrack, selectedTrackId, stopTrack])
 
   const toggleMusic = useCallback(() => {
+    if (!musicAllowed) {
+      stopTrack(true)
+      return
+    }
+
     if (musicPlaying) {
       stopTrack()
       return
     }
 
     void playTrack(selectedTrackId)
-  }, [musicPlaying, playTrack, selectedTrackId, stopTrack])
+  }, [musicAllowed, musicPlaying, playTrack, selectedTrackId, stopTrack])
 
   useEffect(() => {
     let isActive = true
     let removePendingStart = () => {}
 
+    if (!musicAllowed || !user?.id) {
+      initialStartedForUserRef.current = null
+      stopTrack(true)
+      return undefined
+    }
+
+    if (initialStartedForUserRef.current === user.id) {
+      return undefined
+    }
+
+    initialStartedForUserRef.current = user.id
+
     async function startInitialTrack() {
-      const didStart = await playTrack(selectedTrackId)
+      const initialTrackId = getRandomTrackId()
+      const didStart = await playTrack(initialTrackId)
       if (!isActive || didStart) return
 
       function startAfterGesture() {
         removePendingStart()
-        void playTrack(selectedTrackId)
+        void playTrack(initialTrackId)
       }
 
       removePendingStart = () => {
@@ -97,14 +133,13 @@ export function DashboardMusicProvider({ children }) {
     return () => {
       isActive = false
       removePendingStart()
-      const audio = audioRef.current
-      if (audio) audio.pause()
     }
-  }, [])
+  }, [musicAllowed, playTrack, stopTrack, user?.id])
 
   const value = useMemo(
     () => ({
       tracks: DASHBOARD_MUSIC_TRACKS,
+      musicAllowed,
       selectedTrackId,
       musicPlaying,
       playTrack,
@@ -112,7 +147,7 @@ export function DashboardMusicProvider({ children }) {
       stopTrack,
       toggleMusic,
     }),
-    [musicPlaying, playNextTrack, playTrack, selectedTrackId, stopTrack, toggleMusic],
+    [musicAllowed, musicPlaying, playNextTrack, playTrack, selectedTrackId, stopTrack, toggleMusic],
   )
 
   return (
@@ -122,7 +157,7 @@ export function DashboardMusicProvider({ children }) {
         ref={audioRef}
         preload="metadata"
         onEnded={() => {
-          void playNextTrack(selectedTrackId)
+          if (musicAllowed) void playNextTrack(selectedTrackId)
         }}
         onPlay={() => setMusicPlaying(true)}
         onPause={() => setMusicPlaying(false)}
