@@ -13,6 +13,27 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" id="app-entry" src="/src/main.jsx"></script>
+    <script>
+      ;(() => {
+        const isLocalHost =
+          window.location.protocol === 'file:' ||
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1'
+
+        if (isLocalHost) return
+
+        const entry = document.getElementById('app-entry')
+        const isRawSourceEntry = entry?.getAttribute('src') === '/src/main.jsx'
+        const alreadyInDocs = /\/docs\/?$/.test(window.location.pathname)
+
+        if (!isRawSourceEntry || alreadyInDocs) return
+
+        const target = new URL('./docs/', window.location.href)
+        target.search = window.location.search
+        target.hash = window.location.hash
+        window.location.replace(target.toString())
+      })()
+    </script>
   </body>
 </html>

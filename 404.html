@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>El Mundialito</title>
+    <script>
+      ;(() => {
+        const isLocalHost =
+          window.location.protocol === 'file:' ||
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1'
+
+        if (isLocalHost) return
+
+        const segments = window.location.pathname.split('/').filter(Boolean)
+        const repoIndex = segments.findIndex((segment) => segment.toLowerCase() === 'mundialito')
+        const routeSegments =
+          repoIndex >= 0 ? segments.slice(repoIndex + 1).filter((segment) => segment.toLowerCase() !== '404.html') : []
+
+        const looksLikeAsset = routeSegments.some((segment) => segment.includes('.'))
+        const routeHash = routeSegments.length && !looksLikeAsset ? `#/${routeSegments.join('/')}` : ''
+        const target = `${window.location.origin}/Mundialito/docs/${window.location.search}${routeHash}`
+
+        window.location.replace(target)
+      })()
+    </script>
+  </head>
+  <body></body>
+</html>

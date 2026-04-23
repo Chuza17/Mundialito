@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>El Mundialito</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@600;700;800&family=Bebas+Neue&family=Black+Ops+One&display=swap"
+      rel="stylesheet"
+    />
+    <script type="module" crossorigin src="./assets/index-CiICsU1U.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-B_8iYCYb.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      ;(() => {
+        const isLocalHost =
+          window.location.protocol === 'file:' ||
+          window.location.hostname === 'localhost' ||
+          window.location.hostname === '127.0.0.1'
+
+        if (isLocalHost) return
+
+        const entry = document.getElementById('app-entry')
+        const isRawSourceEntry = entry?.getAttribute('src') === '/src/main.jsx'
+        const alreadyInDocs = /\/docs\/?$/.test(window.location.pathname)
+
+        if (!isRawSourceEntry || alreadyInDocs) return
+
+        const target = new URL('./docs/', window.location.href)
+        target.search = window.location.search
+        target.hash = window.location.hash
+        window.location.replace(target.toString())
+      })()
+    </script>
+  </body>
+</html>
