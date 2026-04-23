@@ -1,11 +1,12 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { publicAsset } from '../utils/publicAsset'
 
 export const DASHBOARD_MUSIC_TRACKS = [
-  { id: 'olha', label: 'Olha a Explosao', src: '/dashboard-audio/olha-a-explosao.mp3' },
-  { id: 'agora', label: 'Agora e tudo meu', src: '/dashboard-audio/agora-e-tudo-meu.mp3' },
-  { id: 'mas-que-nada', label: 'Mas Que Nada', src: '/dashboard-audio/mas-que-nada.mp3' },
-  { id: 'magalenha', label: 'Magalenha', src: '/dashboard-audio/magalenha.mp3' },
+  { id: 'olha', label: 'Olha a Explosao', src: publicAsset('/dashboard-audio/olha-a-explosao.mp3') },
+  { id: 'agora', label: 'Agora e tudo meu', src: publicAsset('/dashboard-audio/agora-e-tudo-meu.mp3') },
+  { id: 'mas-que-nada', label: 'Mas Que Nada', src: publicAsset('/dashboard-audio/mas-que-nada.mp3') },
+  { id: 'magalenha', label: 'Magalenha', src: publicAsset('/dashboard-audio/magalenha.mp3') },
 ]
 
 export const DashboardMusicContext = createContext(null)

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { APP_NAME } from '../utils/constants'
+import { publicAsset } from '../utils/publicAsset'
 import dashboardLogo from '../assets/branding/logo_mundialito_gxmz.png'
 import loginButtonImage from '../assets/branding/login-button.png'
 
@@ -158,8 +159,8 @@ export default function PublicLoginPage() {
         playsInline
         preload="metadata"
       >
-        <source src="/dashboard-videos/grupos.mp4" type="video/mp4" />
-        <source src="/dashboard-videos/groups.mp4" type="video/mp4" />
+        <source src={publicAsset('/dashboard-videos/grupos.mp4')} type="video/mp4" />
+        <source src={publicAsset('/dashboard-videos/groups.mp4')} type="video/mp4" />
       </video>
       <div className="public-login-overlay" />
       <div className="public-login-vignette" />

@@ -13,6 +13,7 @@ import neonOnImage from '../../assets/branding/neon-on.png'
 import pointsHelpButtonImage from '../../assets/branding/points-help-button.png'
 import pointsSystemImage from '../../assets/branding/points-system.png'
 import scrollBallImage from '../../assets/branding/world-cup-ball-2026.png'
+import { publicAsset } from '../../utils/publicAsset'
 
 function getStoredNeonPreference() {
   try {
@@ -27,7 +28,7 @@ function VideoSurface({ src, title, className = '' }) {
   const sourceKey = sources.join('|')
   const [sourceIndex, setSourceIndex] = useState(0)
   const [failed, setFailed] = useState(false)
-  const activeSource = sources[sourceIndex]
+  const activeSource = publicAsset(sources[sourceIndex])
 
   useEffect(() => {
     setSourceIndex(0)

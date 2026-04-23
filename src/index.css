@@ -99,11 +99,11 @@ body {
   color: #f8fafc;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  cursor: url('/pointer/cursor-soccer-48.png') 6 3, auto;
+  cursor: var(--mundialito-cursor-auto, auto);
 }
 
 button, a, [role="button"] {
-  cursor: url('/pointer/cursor-soccer-48.png') 6 3, pointer;
+  cursor: var(--mundialito-cursor-pointer, pointer);
 }
 
 #root {

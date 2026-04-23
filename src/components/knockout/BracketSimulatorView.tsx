@@ -3,6 +3,7 @@ import { CheckCircle2, Crown, LockKeyhole, Trophy } from 'lucide-react'
 import TeamOrb, { getTeamTokenLabel } from '../common/TeamOrb'
 import { getMatchesByRound, isBestThirdSource } from '../../utils/bracketLogic'
 import { ROUND_NAMES, ROUNDS } from '../../utils/constants'
+import { publicAsset } from '../../utils/publicAsset'
 import type { BracketBoardProps, BracketMatch, BracketTeam } from './bracketTypes'
 
 const BOARD = {
@@ -437,7 +438,7 @@ function TrophyGifCelebration({
     <div className="knockout-trophy-gif-overlay" aria-live="polite">
       <div className="knockout-trophy-gif-card">
         <span className="knockout-trophy-gif-kicker">Campeon pronosticado</span>
-        <img src="/celebrations/trophy_animation.gif" alt="Celebracion con trofeo" />
+        <img src={publicAsset('/celebrations/trophy_animation.gif')} alt="Celebracion con trofeo" />
         <strong>{championTeam.name}</strong>
         <span>{getTeamTokenLabel(championTeam)}</span>
       </div>

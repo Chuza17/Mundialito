@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useAppConfig } from '../../hooks/useAppConfig'
 import { useAuth } from '../../hooks/useAuth'
+import { publicAsset } from '../../utils/publicAsset'
 
-const GLOBAL_LOADER_VIDEO = '/dashboard-videos/global-loader.mp4'
+const GLOBAL_LOADER_VIDEO = publicAsset('/dashboard-videos/global-loader.mp4')
 const MINIMUM_LOADER_TIME_MS = 1800
 const MAXIMUM_LOADER_TIME_MS = 4200
 const EXIT_ANIMATION_MS = 460
