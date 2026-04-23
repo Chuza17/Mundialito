@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <!-- Blue background — official Scottish blue -->
+  <rect width="900" height="600" fill="#0065BF"/>
+  <!-- White Saltire (St. Andrew's Cross) -->
+  <path d="M0,0 L900,600 M900,0 L0,600"
+        stroke="white" stroke-width="200" stroke-linecap="butt"/>
+</svg>

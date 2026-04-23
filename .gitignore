@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Local env and secrets
+.env
+.env.*
+!.env.example
+
+# Vite/cache/logs
+.vite/
+node_modules/.vite/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
+
+# Local/old nested scaffold
+el-mundialito/
+
+# Supabase local link/cache
+supabase/.temp/

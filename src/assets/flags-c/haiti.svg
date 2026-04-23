@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="600" viewBox="0 0 1000 600">
+  <!-- Red background -->
+  <rect width="1000" height="600" fill="#D21034"/>
+  <!-- Blue top half -->
+  <rect width="1000" height="300" fill="#00209F"/>
+  <!-- White rectangle for coat of arms -->
+  <rect x="375" y="188" width="250" height="225" fill="white"/>
+
+  <!-- Green ground / base -->
+  <rect x="375" y="360" width="250" height="53" fill="#016a16"/>
+
+  <!-- Palm tree trunk -->
+  <rect x="494" y="240" width="12" height="120" fill="#8B4513"/>
+  <!-- Palm fronds -->
+  <ellipse cx="500" cy="235" rx="48" ry="18" fill="#016a16" transform="rotate(-25 500 235)"/>
+  <ellipse cx="500" cy="235" rx="48" ry="18" fill="#016a16" transform="rotate(25 500 235)"/>
+  <ellipse cx="500" cy="230" rx="45" ry="16" fill="#016a16" transform="rotate(-50 500 230)"/>
+  <ellipse cx="500" cy="230" rx="45" ry="16" fill="#016a16" transform="rotate(50 500 230)"/>
+  <ellipse cx="500" cy="228" rx="40" ry="14" fill="#016a16"/>
+
+  <!-- Cannon -->
+  <rect x="458" y="348" width="84" height="22" rx="8" fill="#555"/>
+  <rect x="448" y="352" width="16" height="14" rx="4" fill="#444"/>
+  <!-- Cannonballs -->
+  <circle cx="430" cy="358" r="8" fill="#333"/>
+  <circle cx="446" cy="358" r="8" fill="#333"/>
+  <circle cx="554" cy="358" r="8" fill="#333"/>
+  <circle cx="570" cy="358" r="8" fill="#333"/>
+
+  <!-- Left flagpole and flag -->
+  <rect x="415" y="260" width="4" height="90" fill="#888"/>
+  <rect x="419" y="260" width="36" height="22" fill="#D21034"/>
+  <rect x="419" y="282" width="36" height="10" fill="#00209F"/>
+
+  <!-- Right flagpole and flag -->
+  <rect x="581" y="260" width="4" height="90" fill="#888"/>
+  <rect x="545" y="260" width="36" height="22" fill="#D21034"/>
+  <rect x="545" y="282" width="36" height="10" fill="#00209F"/>
+
+  <!-- Axes and anchors (simplified) -->
+  <line x1="445" y1="295" x2="455" y2="345" stroke="#777" stroke-width="4"/>
+  <line x1="450" y1="295" x2="460" y2="345" stroke="#888" stroke-width="3"/>
+  <line x1="555" y1="295" x2="545" y2="345" stroke="#777" stroke-width="4"/>
+  <line x1="550" y1="295" x2="540" y2="345" stroke="#888" stroke-width="3"/>
+
+  <!-- Gold banner at bottom of white rect -->
+  <rect x="375" y="390" width="250" height="23" fill="#F1B517"/>
+  <text x="500" y="406" text-anchor="middle" font-size="9.5" fill="#00209F"
+        font-family="Georgia, serif" font-weight="bold" letter-spacing="1">L'UNION FAIT LA FORCE</text>
+</svg>

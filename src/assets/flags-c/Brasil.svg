@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <!-- Green background -->
+  <rect width="900" height="600" fill="#009C3B"/>
+  <!-- Yellow diamond -->
+  <polygon points="450,60 840,300 450,540 60,300" fill="#FFDF00"/>
+  <!-- Blue circle -->
+  <circle cx="450" cy="300" r="140" fill="#002776"/>
+  <!-- White arc band -->
+  <path d="M 322,355 A 140,140 0 0,1 578,355" fill="none" stroke="white" stroke-width="28"/>
+  <!-- ORDEM E PROGRESSO text on arc -->
+  <path id="arc" d="M 322,355 A 140,140 0 0,1 578,355" fill="none"/>
+  <text font-size="19" font-family="Arial, sans-serif" font-weight="bold" fill="#009C3B" letter-spacing="3">
+    <textPath href="#arc" startOffset="8%">ORDEM E PROGRESSO</textPath>
+  </text>
+  <!-- Stars (simplified — a few representative stars) -->
+  <circle cx="370" cy="250" r="6" fill="white"/>
+  <circle cx="420" cy="225" r="5" fill="white"/>
+  <circle cx="480" cy="220" r="7" fill="white"/>
+  <circle cx="530" cy="240" r="5" fill="white"/>
+  <circle cx="550" cy="280" r="6" fill="white"/>
+  <circle cx="450" cy="270" r="5" fill="white"/>
+  <circle cx="400" cy="275" r="4" fill="white"/>
+</svg>

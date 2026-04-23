@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600">
+  <!-- Red background -->
+  <rect width="900" height="600" fill="#C1272D"/>
+  <!-- Green pentagram star centered -->
+  <polygon points="450,195 466,248 521,248 477,279 493,332 450,301 407,332 423,279 379,248 434,248"
+           fill="none" stroke="#006233" stroke-width="8" stroke-linejoin="round"/>
+</svg>
