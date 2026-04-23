@@ -220,10 +220,12 @@ export default function CinematicDashboard({ deadline, loadErrors, name, progres
             </div>
           </div>
         </div>
+      </div>
 
+      <div className="cinematic-top-guide-wrap">
         <button
           type="button"
-          className="cinematic-points-guide-button"
+          className="cinematic-points-guide-button is-topbar"
           aria-label="Ver sistema de puntos"
           onClick={() => setPointsGuideOpen(true)}
         >

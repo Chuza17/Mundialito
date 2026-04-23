@@ -6,16 +6,17 @@ import {
   EyeOff,
   LockKeyhole,
   Mail,
-  Volume2,
-  VolumeX,
   UserRound,
   X,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import { APP_NAME } from '../utils/constants'
 import { publicAsset } from '../utils/publicAsset'
+import audioPlayImage from '../assets/branding/audio-play.png'
+import audioStopImage from '../assets/branding/audio-stop.png'
 import dashboardLogo from '../assets/branding/logo_mundialito_gxmz.png'
 import loginButtonImage from '../assets/branding/login-button.png'
+import pointsHelpButtonImage from '../assets/branding/points-help-button.png'
 
 function SoccerKickLoader() {
   return (
@@ -176,25 +177,39 @@ export default function PublicLoginPage() {
             >
               <img src={dashboardLogo} alt={APP_NAME} />
             </button>
-            <button
-              type="button"
-              className="public-login-sound-button"
-              onClick={toggleVideoSound}
-              aria-label={isMuted ? 'Activar sonido del video' : 'Silenciar video'}
-            >
-              {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-              <span>{isMuted ? 'Muted' : 'Sound'}</span>
-            </button>
+
+            <div className="public-login-brand-tools">
+              <button
+                type="button"
+                className={`public-login-sound-button public-login-image-button${isMuted ? ' is-muted' : ''}`}
+                onClick={toggleVideoSound}
+                aria-label={isMuted ? 'Activar sonido del video' : 'Silenciar video'}
+              >
+                <img src={isMuted ? audioStopImage : audioPlayImage} alt="" aria-hidden="true" />
+                <span className="sr-only">{isMuted ? 'Audio apagado' : 'Audio encendido'}</span>
+              </button>
+
+              <button
+                type="button"
+                className="public-login-help-button public-login-image-button public-login-mobile-only"
+                onClick={() => setIsInfoOpen(true)}
+                aria-label="Como funciona El Mundialito"
+              >
+                <img src={pointsHelpButtonImage} alt="" aria-hidden="true" />
+                <span className="sr-only">Como se juega</span>
+              </button>
+            </div>
           </div>
 
           <div className="public-login-actions">
             <button
               type="button"
-              className="public-login-help-button"
+              className="public-login-help-button public-login-image-button public-login-desktop-only"
               onClick={() => setIsInfoOpen(true)}
               aria-label="Como funciona El Mundialito"
             >
-              ?
+              <img src={pointsHelpButtonImage} alt="" aria-hidden="true" />
+              <span className="sr-only">Como se juega</span>
             </button>
 
             <button type="button" className="public-login-topbar-button" onClick={openLogin} aria-label="Abrir login">
