@@ -104,7 +104,17 @@ function CinematicCard({ section, index }) {
   )
 }
 
-export default function CinematicDashboard({ deadline, loadErrors, name, progress, score = 0, sections, userId }) {
+export default function CinematicDashboard({
+  deadline,
+  loadErrors,
+  name,
+  progress,
+  score = 0,
+  leaderboardRank = null,
+  leaderboardLoading = false,
+  sections,
+  userId,
+}) {
   const location = useLocation()
   const { tracks: musicTracks, selectedTrackId, musicPlaying, playTrack, toggleMusic } = useDashboardMusic()
   const [hasScrolled, setHasScrolled] = useState(false)
@@ -118,6 +128,7 @@ export default function CinematicDashboard({ deadline, loadErrors, name, progres
   const [pointsGuideOpen, setPointsGuideOpen] = useState(false)
   const scoreNumber = Number(score ?? 0)
   const scoreLabel = Number.isFinite(scoreNumber) ? scoreNumber.toLocaleString('es-CR') : '0'
+  const rankLabel = leaderboardLoading ? '...' : leaderboardRank ? `#${leaderboardRank}` : '--'
   const sectionByRoute = new Map(sections.map((section) => [section.to, section]))
   const leftSections = ['/groups', '/best-thirds', '/knockout'].map((route) => sectionByRoute.get(route)).filter(Boolean)
   const rightSections = ['/results', '/my-prediction'].map((route) => sectionByRoute.get(route)).filter(Boolean)
@@ -333,15 +344,6 @@ export default function CinematicDashboard({ deadline, loadErrors, name, progres
         </div>
       </nav>
 
-      {loadErrors.length ? (
-        <div className="dashboard-alert">
-          <p className="dashboard-alert-title">Hay datos que no cargaron bien desde Supabase.</p>
-          <p className="dashboard-alert-copy">
-            La vista puede usar datos de respaldo mientras revisamos tablas, policies RLS o el perfil del usuario.
-          </p>
-        </div>
-      ) : null}
-
       <div className="cinematic-hero">
         <VideoSurface
           src={[
@@ -361,6 +363,18 @@ export default function CinematicDashboard({ deadline, loadErrors, name, progres
           <span>Quiniela privada</span>
         </div>
 
+        <div className="cinematic-mobile-hero-topbar" aria-label="Resumen rapido del dashboard">
+          <article className="cinematic-mobile-hero-card is-player">
+            <span>Jugador</span>
+            <strong>{name}</strong>
+          </article>
+
+          <article className="cinematic-mobile-hero-card is-score">
+            <span>Puntuacion</span>
+            <strong>{scoreLabel} pts</strong>
+          </article>
+        </div>
+
         <div className="cinematic-hero-content">
           <div className="cinematic-hero-logo-wrap">
             <img
@@ -377,6 +391,12 @@ export default function CinematicDashboard({ deadline, loadErrors, name, progres
           )}
         </div>
 
+        <div className={`cinematic-mobile-hero-rank${hasStartedScroll ? ' is-hidden' : ''}`} aria-live="polite">
+          <span>Puesto general</span>
+          <strong>{rankLabel}</strong>
+          <small>Tabla general</small>
+        </div>
+
         <img
           src={dashboardCompactLogo}
           alt="El Mundialito"
@@ -384,19 +404,19 @@ export default function CinematicDashboard({ deadline, loadErrors, name, progres
         />
 
         <div className="cinematic-hero-stats">
-          <article>
+          <article className="cinematic-hero-stat-card is-player">
             <span>Jugador</span>
             <strong>{name}</strong>
           </article>
-          <article>
+          <article className="cinematic-hero-stat-card is-score">
             <span>Puntuacion</span>
             <strong>{scoreLabel} pts</strong>
           </article>
-          <article>
+          <article className="cinematic-hero-stat-card is-progress">
             <span>Progreso</span>
             <strong>{progress}%</strong>
           </article>
-          <article>
+          <article className="cinematic-hero-stat-card is-deadline">
             <span>Cierre</span>
             <strong>
               <CountdownTimer deadline={deadline} />
@@ -404,6 +424,15 @@ export default function CinematicDashboard({ deadline, loadErrors, name, progres
           </article>
         </div>
       </div>
+
+      {loadErrors.length ? (
+        <div className="dashboard-alert">
+          <p className="dashboard-alert-title">Hay datos que no cargaron bien desde Supabase.</p>
+          <p className="dashboard-alert-copy">
+            La vista puede usar datos de respaldo mientras revisamos tablas, policies RLS o el perfil del usuario.
+          </p>
+        </div>
+      ) : null}
 
       <div className="cinematic-scroll-intro">
         <span className="scroll-ball">

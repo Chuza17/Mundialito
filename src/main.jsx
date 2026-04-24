@@ -11,6 +11,11 @@ import './index.css'
 
 const Router = import.meta.env.BASE_URL === '/' ? BrowserRouter : HashRouter
 
+function syncViewportMetrics() {
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight
+  document.documentElement.style.setProperty('--app-vh', `${viewportHeight * 0.01}px`)
+}
+
 document.documentElement.style.setProperty(
   '--mundialito-cursor-auto',
   `url("${publicAsset('/pointer/cursor-soccer-48.png')}") 6 3, auto`,
@@ -19,6 +24,12 @@ document.documentElement.style.setProperty(
   '--mundialito-cursor-pointer',
   `url("${publicAsset('/pointer/cursor-soccer-48.png')}") 6 3, pointer`,
 )
+
+syncViewportMetrics()
+window.addEventListener('resize', syncViewportMetrics, { passive: true })
+window.addEventListener('orientationchange', syncViewportMetrics)
+window.visualViewport?.addEventListener('resize', syncViewportMetrics)
+window.visualViewport?.addEventListener('scroll', syncViewportMetrics)
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

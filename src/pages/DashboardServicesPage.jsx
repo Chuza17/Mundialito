@@ -22,6 +22,8 @@ export default function DashboardServicesPage() {
   const { user, profile, authError, isAdmin } = useAuth()
   const [score, setScore] = useState(0)
   const [scoreError, setScoreError] = useState(null)
+  const [leaderboardRank, setLeaderboardRank] = useState(null)
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const { teams, error: teamsError } = useTeams()
   const { config, error: configError } = useAppConfig()
   const groups = useGroupPredictions(user?.id)
@@ -80,6 +82,49 @@ export default function DashboardServicesPage() {
         { event: '*', schema: 'public', table: 'user_scores', filter: `user_id=eq.${user.id}` },
         () => fetchUserScore()
       )
+      .subscribe()
+
+    return () => {
+      isActive = false
+      supabase.removeChannel(channel)
+    }
+  }, [user?.id])
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLeaderboardRank(null)
+      setLeaderboardLoading(false)
+      return undefined
+    }
+
+    let isActive = true
+
+    async function fetchLeaderboardRank() {
+      setLeaderboardLoading(true)
+
+      const { data, error } = await supabase
+        .from('user_scores')
+        .select('user_id,total_points')
+        .order('total_points', { ascending: false })
+
+      if (!isActive) return
+
+      if (error) {
+        setLeaderboardRank(null)
+        setLeaderboardLoading(false)
+        return
+      }
+
+      const currentUserIndex = (data ?? []).findIndex((entry) => entry.user_id === user.id)
+      setLeaderboardRank(currentUserIndex >= 0 ? currentUserIndex + 1 : null)
+      setLeaderboardLoading(false)
+    }
+
+    void fetchLeaderboardRank()
+
+    const channel = supabase
+      .channel(`dashboard-rank-${user.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_scores' }, () => fetchLeaderboardRank())
       .subscribe()
 
     return () => {
@@ -215,6 +260,8 @@ export default function DashboardServicesPage() {
       name={name}
       progress={progress}
       score={score}
+      leaderboardRank={leaderboardRank}
+      leaderboardLoading={leaderboardLoading}
       sections={sections}
       userId={user?.id}
     />
