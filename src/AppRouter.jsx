@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Activity, BarChart3, Crown, LayoutDashboard, Shield, Trophy, Users2 } from 'lucide-react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import PointerTrail from './components/common/PointerTrail'
@@ -24,6 +24,7 @@ function AppLayout() {
   const { config } = useAppConfig()
   const location = useLocation()
   const isDashboard = location.pathname === '/dashboard'
+  const [chromeHidden, setChromeHidden] = useState(false)
 
   const navItems = useMemo(() => {
     const items = [
@@ -45,14 +46,14 @@ function AppLayout() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,#1b3150,transparent_35%),linear-gradient(180deg,#07111f_0%,#0c1727_50%,#07111f_100%)] text-slate-100">
       <div className="mx-auto max-w-[1600px] px-4 pb-28 pt-4 sm:px-6 lg:px-8">
         <Navbar profile={profile} deadline={config?.deadline} isCinematic={isDashboard} onLogout={logout} />
-        <div className={isDashboard ? 'grid gap-6' : 'grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]'}>
-          {isDashboard ? null : <Sidebar items={navItems} />}
+        <div className={isDashboard || chromeHidden ? 'grid gap-6' : 'grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]'}>
+          {isDashboard || chromeHidden ? null : <Sidebar items={navItems} />}
           <main className="min-w-0">
-            <Outlet />
+            <Outlet context={{ setChromeHidden }} />
           </main>
         </div>
       </div>
-      <BottomNav items={navItems} />
+      {chromeHidden ? null : <BottomNav items={navItems} />}
     </div>
   )
 }

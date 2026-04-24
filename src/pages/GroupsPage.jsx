@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { DndContext, DragOverlay, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
-import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { DndContext, DragOverlay, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
 import CountdownTimer from '../components/common/CountdownTimer'
@@ -21,6 +21,8 @@ function getPreviewCodes(rows = []) {
 function clampPoints(value) {
   return Math.max(0, Math.min(9, value))
 }
+
+const MOBILE_GROUPS_MEDIA_QUERY = '(max-width: 768px)'
 
 function buildRows(teamsByGroup, predictionsByGroup) {
   return GROUPS.reduce((accumulator, group) => {
@@ -95,17 +97,24 @@ function GroupSelectorCard({ active, complete, group, onSelect, rows }) {
   )
 }
 
-function SortablePlacementSlot({ disabled, row }) {
+function stopDragPropagation(event) {
+  event.stopPropagation()
+}
+
+function SortablePlacementSlot({ disabled, row, mobileLayout, onPointsChange }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.team_id,
     disabled,
   })
 
+  const dragBindings = mobileLayout && !disabled ? { ...attributes, ...listeners } : {}
+
   return (
     <article
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`groups-placement-slot${isDragging ? ' is-dragging' : ''}`}
+      className={`groups-placement-slot${isDragging ? ' is-dragging' : ''}${mobileLayout && !disabled ? ' is-mobile-sortable' : ''}`}
+      {...dragBindings}
     >
       <div className="groups-placement-slot-top">
         <div>
@@ -113,20 +122,52 @@ function SortablePlacementSlot({ disabled, row }) {
           <strong className="groups-placement-slot-rank">{row.predicted_position}</strong>
         </div>
 
-        <button
-          type="button"
-          className="groups-placement-handle"
-          disabled={disabled}
-          aria-label={`Arrastrar ${row.team?.name ?? 'equipo'} a otra posicion`}
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+        <div className="groups-placement-slot-tools">
+          {mobileLayout ? (
+            <>
+              <label
+                className="groups-placement-inline-points"
+                onPointerDown={stopDragPropagation}
+                onMouseDown={stopDragPropagation}
+                onTouchStart={stopDragPropagation}
+              >
+                <span>Pts</span>
+                <input
+                  type="number"
+                  min="0"
+                  max="9"
+                  value={row.predicted_points}
+                  disabled={disabled}
+                  onChange={(event) => onPointsChange(row.team_id, Number(event.target.value))}
+                  className="field-input groups-placement-inline-points-input"
+                  onPointerDown={stopDragPropagation}
+                  onMouseDown={stopDragPropagation}
+                  onTouchStart={stopDragPropagation}
+                />
+              </label>
+
+              <span className="groups-placement-touch-pill" aria-hidden="true">
+                <GripVertical className="h-4 w-4" />
+                <span>Mover</span>
+              </span>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="groups-placement-handle"
+              disabled={disabled}
+              aria-label={`Arrastrar ${row.team?.name ?? 'equipo'} a otra posicion`}
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="groups-placement-slot-body">
-        <TeamOrb team={row.team} size="lg" />
+        <TeamOrb team={row.team} size={mobileLayout ? 'md' : 'lg'} />
         <div className="groups-placement-slot-copy">
           <strong>{row.team?.name ?? 'Pendiente'}</strong>
           <span>{getTeamTokenLabel(row.team)}</span>
@@ -134,8 +175,14 @@ function SortablePlacementSlot({ disabled, row }) {
       </div>
 
       <div className="groups-placement-slot-footer">
-        <span className="groups-placement-slot-points">{row.predicted_points} pts</span>
-        <span className="groups-placement-slot-note">Arrastra para cambiar el orden</span>
+        {mobileLayout ? (
+          <span className="groups-placement-slot-note">Arrastra desde cualquier parte de la tarjeta para subir o bajar el equipo.</span>
+        ) : (
+          <>
+            <span className="groups-placement-slot-points">{row.predicted_points} pts</span>
+            <span className="groups-placement-slot-note">Arrastra para cambiar el orden</span>
+          </>
+        )}
       </div>
     </article>
   )
@@ -156,7 +203,9 @@ function DragTokenPreview({ row }) {
 }
 
 export default function GroupsPage() {
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
+  const [isMobileLayout, setIsMobileLayout] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(MOBILE_GROUPS_MEDIA_QUERY).matches : false
+  )
   const { user } = useAuth()
   const { teams, error: teamsError } = useTeams()
   const { config, error: configError } = useAppConfig()
@@ -167,6 +216,16 @@ export default function GroupsPage() {
   const [activeTeamId, setActiveTeamId] = useState(null)
   const [toast, setToast] = useState(null)
   const [submittingTarget, setSubmittingTarget] = useState('')
+  const stagePanelRef = useRef(null)
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        distance: isMobileLayout ? 6 : 8,
+      },
+    })
+  )
 
   const teamsByGroup = useMemo(() => groupTeamsByLetter(teams), [teams])
   const predictionsByGroup = useMemo(
@@ -191,6 +250,22 @@ export default function GroupsPage() {
     setSelectedGroup((current) => (current && GROUPS.includes(current) ? current : firstPendingGroup))
   }, [firstPendingGroup])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+
+    const mediaQuery = window.matchMedia(MOBILE_GROUPS_MEDIA_QUERY)
+    const syncLayout = () => setIsMobileLayout(mediaQuery.matches)
+    syncLayout()
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', syncLayout)
+      return () => mediaQuery.removeEventListener('change', syncLayout)
+    }
+
+    mediaQuery.addListener(syncLayout)
+    return () => mediaQuery.removeListener(syncLayout)
+  }, [])
+
   const locked = config?.predictions_locked || new Date(config?.deadline).getTime() <= Date.now()
   const loadErrors = [teamsError, configError, predictionsError].filter(Boolean)
   const completedGroups = useMemo(
@@ -200,6 +275,9 @@ export default function GroupsPage() {
   const activeRows = drafts[selectedGroup] ?? []
   const activeValidation = validateGroupTable(activeRows)
   const draggedRow = activeRows.find((row) => row.team_id === activeTeamId)
+  const selectedGroupComplete = validateGroupTable(drafts[selectedGroup] ?? []).valid
+  const selectedGroupPreviewCodes = getPreviewCodes(activeRows)
+  const sortingStrategy = isMobileLayout ? verticalListSortingStrategy : rectSortingStrategy
 
   function updateGroupRows(group, rows) {
     setDrafts((current) => ({
@@ -209,6 +287,25 @@ export default function GroupsPage() {
         predicted_position: index + 1,
       })),
     }))
+  }
+
+  function focusStagePanel() {
+    if (!isMobileLayout) return
+
+    requestAnimationFrame(() => {
+      stagePanelRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    })
+  }
+
+  function handleGroupSelection(group, options = {}) {
+    setSelectedGroup(group)
+
+    if (options.scrollToStage) {
+      focusStagePanel()
+    }
   }
 
   function handleDragStart(event) {
@@ -312,7 +409,7 @@ export default function GroupsPage() {
           <h1 className="dashboard-services-title">Ordena tus grupos</h1>
           <p className="dashboard-services-description">
             Usa el mismo ritmo visual del dashboard para elegir un grupo, mover las selecciones a su puesto final y
-            ajustar los puntos debajo.
+            ajustar los puntos con una lectura clara en cada pantalla.
           </p>
         </div>
 
@@ -368,6 +465,45 @@ export default function GroupsPage() {
           </p>
         </div>
 
+        <div className="groups-mobile-selector">
+          <label className="groups-mobile-select-shell">
+            <span className="groups-mobile-select-label">Abrir grupo</span>
+            <div className="groups-mobile-select-wrap">
+              <select
+                value={selectedGroup || firstPendingGroup}
+                onChange={(event) => handleGroupSelection(event.target.value, { scrollToStage: true })}
+                className="groups-mobile-select"
+              >
+                {GROUPS.map((group) => {
+                  const complete = validateGroupTable(drafts[group] ?? []).valid
+
+                  return (
+                    <option key={group} value={group}>
+                      {`Grupo ${group} - ${complete ? 'Listo' : 'Pendiente'}`}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+          </label>
+
+          <div className="groups-mobile-selector-meta">
+            <span className={`groups-selector-card-status${selectedGroupComplete ? ' is-complete' : ''}`}>
+              {selectedGroupComplete ? 'Grupo listo' : 'Pendiente'}
+            </span>
+
+            <div className="groups-mobile-selector-preview">
+              {selectedGroupPreviewCodes.map((code) => (
+                <span key={`mobile-${selectedGroup}-${code}`} className="groups-selector-card-code">
+                  {code}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <p className="groups-mobile-selector-note">Elige un grupo y te llevamos directo al editor para arrastrar y ajustar puntos.</p>
+        </div>
+
         <div className="groups-selector-scroller">
           <div className="groups-selector-track">
             {GROUPS.map((group) => (
@@ -377,21 +513,22 @@ export default function GroupsPage() {
                 rows={drafts[group] ?? []}
                 active={selectedGroup === group}
                 complete={validateGroupTable(drafts[group] ?? []).valid}
-                onSelect={() => setSelectedGroup(group)}
+                onSelect={() => handleGroupSelection(group)}
               />
             ))}
           </div>
         </div>
       </div>
 
-      <div className="groups-stage-panel">
+      <div ref={stagePanelRef} className="groups-stage-panel">
         <div className="groups-stage-head">
           <div className="groups-section-copy">
             <p className="groups-section-kicker">Ranking visual</p>
             <h2 className="groups-section-title">Grupo {selectedGroup || '--'}</h2>
             <p className="groups-section-description">
-              Arrastra cada seleccion al puesto donde crees que terminara. El orden del ranking se refleja abajo en la
-              tabla de puntos.
+              {isMobileLayout
+                ? 'Arrastra cada tarjeta desde donde te quede mas comodo y ajusta sus puntos ahi mismo.'
+                : 'Arrastra cada seleccion al puesto donde crees que terminara. El orden del ranking se refleja abajo en la tabla de puntos.'}
             </p>
           </div>
           <span className={`groups-validation-pill${activeValidation.valid ? ' is-valid' : ''}`}>
@@ -406,10 +543,16 @@ export default function GroupsPage() {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <SortableContext items={activeRows.map((row) => row.team_id)} strategy={rectSortingStrategy}>
+          <SortableContext items={activeRows.map((row) => row.team_id)} strategy={sortingStrategy}>
             <div className="groups-placement-grid">
               {activeRows.map((row) => (
-                <SortablePlacementSlot key={row.team_id} row={row} disabled={locked} />
+                <SortablePlacementSlot
+                  key={row.team_id}
+                  row={row}
+                  disabled={locked}
+                  mobileLayout={isMobileLayout}
+                  onPointsChange={handlePointsChange}
+                />
               ))}
             </div>
           </SortableContext>

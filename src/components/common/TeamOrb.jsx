@@ -21,7 +21,7 @@ export default function TeamOrb({ team, size = 'md', className = '' }) {
 
   return (
     <span className={`groups-team-orb groups-team-orb-${size}${asset ? ' has-image' : ''}${className ? ` ${className}` : ''}`}>
-      {asset ? <img src={asset} alt={team?.name ?? label} /> : <span>{label}</span>}
+      {asset ? <img src={asset} alt={team?.name ?? label} draggable="false" /> : <span>{label}</span>}
     </span>
   )
 }

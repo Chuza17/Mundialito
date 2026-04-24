@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import CountdownTimer from '../components/common/CountdownTimer'
 import { useAppConfig } from '../hooks/useAppConfig'
+import { useAppLayoutChromeHidden } from '../hooks/useAppLayoutChrome'
 import { useAuth } from '../hooks/useAuth'
 import { useLeaderboard } from '../hooks/useLeaderboard'
 import messiBackground from '../assets/branding/messi_background.jpg'
@@ -55,6 +56,7 @@ export default function LeaderboardPage() {
   const { user } = useAuth()
   const { config } = useAppConfig()
   const { leaderboard, loading, error } = useLeaderboard()
+  useAppLayoutChromeHidden(loading)
 
   const currentUserIndex = leaderboard.findIndex((entry) => entry.user_id === user?.id)
   const currentUserEntry = currentUserIndex >= 0 ? leaderboard[currentUserIndex] : null

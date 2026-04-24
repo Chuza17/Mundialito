@@ -29,4 +29,5 @@ export interface BracketBoardProps {
   onPick: (matchCode: string, winnerTeamId: string | number) => void
   championTeam?: BracketTeam | null
   celebrate?: boolean
+  isSimulationMode?: boolean
 }

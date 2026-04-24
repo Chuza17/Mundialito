@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ArrowUpRight, Play } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import CountdownTimer from '../common/CountdownTimer'
 import { POINTER_TRAIL_STORAGE_KEY, POINTER_TRAIL_TOGGLE_EVENT } from '../common/PointerTrail'
 import { useDashboardMusic } from '../../hooks/useDashboardMusic'
@@ -105,6 +105,7 @@ function CinematicCard({ section, index }) {
 }
 
 export default function CinematicDashboard({ deadline, loadErrors, name, progress, score = 0, sections, userId }) {
+  const location = useLocation()
   const { tracks: musicTracks, selectedTrackId, musicPlaying, playTrack, toggleMusic } = useDashboardMusic()
   const [hasScrolled, setHasScrolled] = useState(false)
   const [hasStartedScroll, setHasStartedScroll] = useState(false)
@@ -117,6 +118,11 @@ export default function CinematicDashboard({ deadline, loadErrors, name, progres
   const [pointsGuideOpen, setPointsGuideOpen] = useState(false)
   const scoreNumber = Number(score ?? 0)
   const scoreLabel = Number.isFinite(scoreNumber) ? scoreNumber.toLocaleString('es-CR') : '0'
+  const sectionByRoute = new Map(sections.map((section) => [section.to, section]))
+  const leftSections = ['/groups', '/best-thirds', '/knockout'].map((route) => sectionByRoute.get(route)).filter(Boolean)
+  const rightSections = ['/results', '/my-prediction'].map((route) => sectionByRoute.get(route)).filter(Boolean)
+  const centerSection = sectionByRoute.get('/scoreboard')
+  const adminSection = sections.find((section) => section.to.startsWith('/admin'))
 
   useEffect(() => {
     if (!heroTextVisible) return
@@ -270,6 +276,62 @@ export default function CinematicDashboard({ deadline, loadErrors, name, progres
           <img src={dashboardCompactLogo} alt="El Mundialito" />
         </Link>
       </div>
+
+      <nav className="mobile-dock-nav mobile-dashboard-dock lg:hidden" aria-label="Menu movil del dashboard">
+        {adminSection ? (
+          <div className="mobile-dock-admin-row">
+            <Link
+              to={adminSection.to}
+              aria-label={adminSection.title}
+              className={`mobile-dock-admin-link${location.pathname === adminSection.to ? ' is-active' : ''}`}
+            >
+              <adminSection.icon className="h-4 w-4" />
+              <span>Admin</span>
+            </Link>
+          </div>
+        ) : null}
+
+        <div className="mobile-dock-shell">
+          <div className="mobile-dock-side">
+            {leftSections.map((section) => (
+              <Link
+                key={section.to}
+                to={section.to}
+                aria-label={section.title}
+                className={`mobile-dock-link${location.pathname === section.to ? ' is-active' : ''}`}
+              >
+                <section.icon className="h-4 w-4" />
+                <span className="sr-only">{section.title}</span>
+              </Link>
+            ))}
+          </div>
+
+          {centerSection ? (
+            <Link
+              to={centerSection.to}
+              aria-label={centerSection.title}
+              className={`mobile-dock-center${location.pathname === centerSection.to ? ' is-active' : ''}`}
+            >
+              <centerSection.icon className="h-5 w-5" />
+              <span className="sr-only">{centerSection.title}</span>
+            </Link>
+          ) : null}
+
+          <div className="mobile-dock-side">
+            {rightSections.map((section) => (
+              <Link
+                key={section.to}
+                to={section.to}
+                aria-label={section.title}
+                className={`mobile-dock-link${location.pathname === section.to ? ' is-active' : ''}`}
+              >
+                <section.icon className="h-4 w-4" />
+                <span className="sr-only">{section.title}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </nav>
 
       {loadErrors.length ? (
         <div className="dashboard-alert">

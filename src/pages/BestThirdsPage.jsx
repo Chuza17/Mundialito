@@ -47,6 +47,33 @@ function ThirdCandidateCard({ disabled, isSelected, onToggle, row }) {
   )
 }
 
+function MobileThirdCandidateRow({ disabled, isSelected, onToggle, row }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      className={`thirds-mobile-candidate-row${isSelected ? ' is-selected' : ''}`}
+    >
+      <div className="thirds-mobile-candidate-main">
+        <span className="thirds-mobile-candidate-group">Grupo {row.group_letter}</span>
+        <div className="thirds-mobile-candidate-team">
+          <TeamOrb team={row.team} />
+          <div className="thirds-mobile-candidate-copy">
+            <strong>{row.team?.name ?? 'Pendiente'}</strong>
+            <span>{getTeamTokenLabel(row.team)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="thirds-mobile-candidate-side">
+        <strong>{row.predicted_points} pts</strong>
+        <span>{isSelected ? 'Quitar' : 'Elegir'}</span>
+      </div>
+    </button>
+  )
+}
+
 function SelectedThirdSlot({ disabled, index, onRemove, row }) {
   if (!row) {
     return (
@@ -88,6 +115,52 @@ function SelectedThirdSlot({ disabled, index, onRemove, row }) {
         <span>{row.predicted_points} pts</span>
       </div>
     </article>
+  )
+}
+
+function BestThirdsOverviewCard({ deadline, label, value, timer = false }) {
+  return (
+    <div className="dashboard-overview-card thirds-overview-card">
+      <span className="dashboard-overview-label">{label}</span>
+      {timer ? (
+        <div className="dashboard-overview-timer">
+          <CountdownTimer deadline={deadline} />
+        </div>
+      ) : (
+        <strong className="dashboard-overview-value">{value}</strong>
+      )}
+    </div>
+  )
+}
+
+function BestThirdsActionButtons({
+  allGroupsComplete,
+  clearSelection,
+  handleSave,
+  locked,
+  selectedCount,
+  submitting,
+  className = '',
+}) {
+  return (
+    <div className={className}>
+      <button
+        type="button"
+        onClick={clearSelection}
+        disabled={locked || !selectedCount || submitting}
+        className="button-secondary groups-action-button"
+      >
+        Limpiar seleccion
+      </button>
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={locked || !allGroupsComplete || selectedCount !== 8 || submitting}
+        className="button-primary groups-action-button"
+      >
+        {submitting ? 'Guardando...' : locked ? 'Predicciones cerradas' : 'Guardar seleccion'}
+      </button>
+    </div>
   )
 }
 
@@ -147,6 +220,26 @@ export default function BestThirdsPage() {
     () => Array.from({ length: 8 }, (_, index) => selectedRows[index] ?? null),
     [selectedRows]
   )
+  const overviewCards = useMemo(
+    () => [
+      {
+        key: 'selected',
+        label: 'Seleccionados',
+        value: `${selected.length}/8 elegidos`,
+      },
+      {
+        key: 'groups',
+        label: 'Grupos listos',
+        value: `${completedGroups}/12 completos`,
+      },
+      {
+        key: 'deadline',
+        label: 'Cierre',
+        timer: true,
+      },
+    ],
+    [completedGroups, selected.length]
+  )
 
   function toggleGroup(groupLetter) {
     setSelected((current) => {
@@ -205,41 +298,49 @@ export default function BestThirdsPage() {
         </div>
 
         <div className="groups-head-side">
-          <div className="groups-head-actions">
-            <button
-              type="button"
-              onClick={clearSelection}
-              disabled={locked || !selected.length || submitting}
-              className="button-secondary groups-action-button"
-            >
-              Limpiar seleccion
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={locked || !allGroupsComplete || selected.length !== 8 || submitting}
-              className="button-primary groups-action-button"
-            >
-              {submitting ? 'Guardando...' : locked ? 'Predicciones cerradas' : 'Guardar seleccion'}
-            </button>
-          </div>
+          <BestThirdsActionButtons
+            allGroupsComplete={allGroupsComplete}
+            className="groups-head-actions thirds-head-actions"
+            clearSelection={clearSelection}
+            handleSave={handleSave}
+            locked={locked}
+            selectedCount={selected.length}
+            submitting={submitting}
+          />
         </div>
       </div>
 
-      <div className="dashboard-services-overview groups-overview-grid">
-        <div className="dashboard-overview-card">
-          <span className="dashboard-overview-label">Seleccionados</span>
-          <strong className="dashboard-overview-value">{selected.length}/8 elegidos</strong>
-        </div>
-        <div className="dashboard-overview-card">
-          <span className="dashboard-overview-label">Grupos listos</span>
-          <strong className="dashboard-overview-value">{completedGroups}/12 completos</strong>
-        </div>
-        <div className="dashboard-overview-card">
-          <span className="dashboard-overview-label">Cierre</span>
-          <div className="dashboard-overview-timer">
-            <CountdownTimer deadline={config?.deadline} />
-          </div>
+      <div className="dashboard-services-overview groups-overview-grid thirds-overview-grid">
+        {overviewCards.map((card) => (
+          <BestThirdsOverviewCard
+            key={card.key}
+            deadline={config?.deadline}
+            label={card.label}
+            timer={card.timer}
+            value={card.value}
+          />
+        ))}
+      </div>
+
+      <div className="thirds-mobile-overview-marquee" aria-label="Resumen de mejores terceros">
+        <div className="thirds-mobile-overview-track">
+          {[0, 1].map((groupIndex) => (
+            <div
+              key={`overview-group-${groupIndex}`}
+              className="thirds-mobile-overview-group"
+              aria-hidden={groupIndex === 1 ? 'true' : undefined}
+            >
+              {overviewCards.map((card) => (
+                <BestThirdsOverviewCard
+                  key={`${groupIndex}-${card.key}`}
+                  deadline={config?.deadline}
+                  label={card.label}
+                  timer={card.timer}
+                  value={card.value}
+                />
+              ))}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -280,6 +381,22 @@ export default function BestThirdsPage() {
               </p>
             </div>
 
+            <div className="thirds-mobile-candidate-list">
+              {thirdPlaceRows.map((row) => {
+                const isSelected = selected.includes(row.group_letter)
+
+                return (
+                  <MobileThirdCandidateRow
+                    key={`mobile-third-${row.group_letter}`}
+                    row={row}
+                    isSelected={isSelected}
+                    disabled={locked}
+                    onToggle={() => toggleGroup(row.group_letter)}
+                  />
+                )
+              })}
+            </div>
+
             <div className="groups-selector-scroller">
               <div className="groups-selector-track thirds-candidate-track">
                 {thirdPlaceRows.map((row) => {
@@ -299,7 +416,7 @@ export default function BestThirdsPage() {
             </div>
           </div>
 
-          <div className="groups-stage-panel">
+          <div className="groups-stage-panel thirds-visual-stage-panel">
             <div className="groups-stage-head">
               <div className="groups-section-copy">
                 <p className="groups-section-kicker">Clasificados visuales</p>
@@ -398,6 +515,16 @@ export default function BestThirdsPage() {
               </div>
             </div>
           </div>
+
+          <BestThirdsActionButtons
+            allGroupsComplete={allGroupsComplete}
+            className="thirds-mobile-actions"
+            clearSelection={clearSelection}
+            handleSave={handleSave}
+            locked={locked}
+            selectedCount={selected.length}
+            submitting={submitting}
+          />
         </>
       )}
 

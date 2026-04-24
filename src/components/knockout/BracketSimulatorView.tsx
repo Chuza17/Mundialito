@@ -452,12 +452,23 @@ export default function BracketSimulatorView({
   onPick,
   championTeam,
   celebrate = false,
+  isSimulationMode = false,
 }: BracketBoardProps) {
   const groupedMatches = getMatchesByRound(matches)
   const positionedMatches = getPositionedMatches(groupedMatches)
   const connectors = getConnectors(groupedMatches)
   const finalMatch = groupedMatches[ROUNDS.FINAL]?.[0]
   const resolvedCount = matches.filter((match) => Boolean(getWinnerId(match.winnerTeamId))).length
+  const sectionKicker = isSimulationMode ? 'Simulador eliminatorio' : 'Eliminatorias'
+  const sectionTitle = isSimulationMode ? 'Elige ganadores en el arbol' : 'Define tus ganadores en el arbol'
+  const sectionDescription = isSimulationMode
+    ? 'La seleccion ahora funciona como un simulador: toca el radio o el equipo ganador y la siguiente llave se alimenta de inmediato.'
+    : 'Elige el equipo ganador en cada llave y el arbol se actualiza al instante para reflejar tu prediccion hasta la final.'
+  const stateLabel = disabled
+    ? 'Bloqueado'
+    : isSimulationMode
+      ? 'Simulacion activa'
+      : 'Prediccion activa'
 
   return (
     <div className="knockout-simulator-shell">
@@ -465,12 +476,9 @@ export default function BracketSimulatorView({
 
       <div className="groups-selector-panel knockout-simulator-panel">
         <div className="groups-section-copy">
-          <p className="groups-section-kicker">Simulador eliminatorio</p>
-          <h2 className="groups-section-title">Elige ganadores en el arbol</h2>
-          <p className="groups-section-description">
-            La seleccion ahora funciona como un simulador: toca el radio o el equipo ganador y la siguiente llave se alimenta
-            de inmediato.
-          </p>
+          <p className="groups-section-kicker">{sectionKicker}</p>
+          <h2 className="groups-section-title">{sectionTitle}</h2>
+          <p className="groups-section-description">{sectionDescription}</p>
         </div>
 
         <div className="knockout-simulator-summary">
@@ -478,7 +486,7 @@ export default function BracketSimulatorView({
             <Trophy className="h-4 w-4" />
             {resolvedCount}/31 llaves
           </span>
-          <span>{disabled ? 'Bloqueado' : 'Seleccion activa'}</span>
+          <span>{stateLabel}</span>
         </div>
       </div>
 

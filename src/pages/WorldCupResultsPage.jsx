@@ -15,6 +15,7 @@ import Modal from '../components/common/Modal'
 import SubpageBackRow from '../components/common/SubpageBackRow'
 import Toast from '../components/common/Toast'
 import { supabase } from '../config/supabase'
+import { useAppLayoutChromeHidden } from '../hooks/useAppLayoutChrome'
 import { useAuth } from '../hooks/useAuth'
 
 const OPEN_MATCH_STATUSES = new Set(['SCHEDULED', 'TIMED'])
@@ -87,6 +88,19 @@ function ResultsButton({ busy = false, children, disabled, icon: Icon, onClick, 
       <Icon className={busy ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
       <span>{children}</span>
     </button>
+  )
+}
+
+function ResultsOverviewCard({ icon: Icon, label, note, value }) {
+  return (
+    <article className="results-stat-card">
+      <div className="results-stat-icon">
+        <Icon className="h-5 w-5" />
+      </div>
+      <span className="results-stat-label">{label}</span>
+      <strong className="results-stat-value">{value}</strong>
+      <p className="results-stat-note">{note}</p>
+    </article>
   )
 }
 
@@ -165,6 +179,7 @@ function PredictionCard({ draft, match, onDraftChange, onRequestSave, prediction
 export default function WorldCupResultsPage() {
   const { isAdmin, user } = useAuth()
   const [selectedDate, setSelectedDate] = useState(getTodayDateKey())
+  const [activeTab, setActiveTab] = useState('matches')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [calculating, setCalculating] = useState(false)
@@ -176,6 +191,7 @@ export default function WorldCupResultsPage() {
   const [predictions, setPredictions] = useState([])
   const [drafts, setDrafts] = useState({})
   const [pendingPrediction, setPendingPrediction] = useState(null)
+  useAppLayoutChromeHidden(loading)
 
   const teamById = useMemo(() => new Map(teams.map((team) => [team.id, team])), [teams])
   const predictionByMatchId = useMemo(() => new Map(predictions.map((prediction) => [prediction.match_id, prediction])), [predictions])
@@ -183,6 +199,32 @@ export default function WorldCupResultsPage() {
   const dayMatches = useMemo(() => matches.filter((match) => getLocalDateKey(match.utc_date) === selectedDate), [matches, selectedDate])
   const openDayMatches = dayMatches.filter((match) => isPredictionOpen(match))
   const bonusPoints = predictions.reduce((total, prediction) => total + Number(prediction.points_awarded ?? 0), 0)
+  const overviewCards = useMemo(
+    () => [
+      {
+        key: 'matches',
+        icon: Trophy,
+        label: 'Partidos cargados',
+        value: matches.length,
+        note: 'Calendario y resultados del Mundial desde football-data.org.',
+      },
+      {
+        key: 'predictions',
+        icon: CheckCircle2,
+        label: 'Tus marcadores',
+        value: predictions.length,
+        note: 'Cada marcador guardado queda bloqueado permanentemente.',
+      },
+      {
+        key: 'bonus',
+        icon: Lock,
+        label: 'Puntos extra',
+        value: bonusPoints,
+        note: '2 puntos por marcador exacto cuando el partido termina.',
+      },
+    ],
+    [bonusPoints, matches.length, predictions.length]
+  )
 
   async function fetchSuite({ silent = false } = {}) {
     if (!silent) setLoading(true)
@@ -340,7 +382,11 @@ export default function WorldCupResultsPage() {
       <div className="results-date-panel">
         <div className="results-date-copy">
           <CalendarDays className="h-5 w-5" />
-          <div><span>Dia de partidos</span><strong>{selectedDate}</strong></div>
+          <div>
+            <span className="results-date-label results-date-label-desktop">Dia de partidos</span>
+            <span className="results-date-label results-date-label-mobile">Busca la fecha de los partidos</span>
+            <strong>{selectedDate}</strong>
+          </div>
         </div>
         <div className="results-date-controls">
           <input type="date" value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)} list="world-cup-match-dates" />
@@ -350,29 +396,75 @@ export default function WorldCupResultsPage() {
           <span>{dayMatches.length} partidos</span>
         </div>
       </div>
-      <div className="results-overview-grid">
-        <article className="results-stat-card"><div className="results-stat-icon"><Trophy className="h-5 w-5" /></div><span className="results-stat-label">Partidos cargados</span><strong className="results-stat-value">{matches.length}</strong><p className="results-stat-note">Calendario y resultados del Mundial desde football-data.org.</p></article>
-        <article className="results-stat-card"><div className="results-stat-icon"><CheckCircle2 className="h-5 w-5" /></div><span className="results-stat-label">Tus marcadores</span><strong className="results-stat-value">{predictions.length}</strong><p className="results-stat-note">Cada marcador guardado queda bloqueado permanentemente.</p></article>
-        <article className="results-stat-card"><div className="results-stat-icon"><Lock className="h-5 w-5" /></div><span className="results-stat-label">Puntos extra</span><strong className="results-stat-value">{bonusPoints}</strong><p className="results-stat-note">2 puntos por marcador exacto cuando el partido termina.</p></article>
+      <div className="results-overview-grid results-overview-grid-desktop">
+        {overviewCards.map((card) => (
+          <ResultsOverviewCard key={card.key} icon={card.icon} label={card.label} note={card.note} value={card.value} />
+        ))}
       </div>
-      <div className="results-day-panel">
-        <div className="groups-summary-head">
-          <div className="groups-section-copy"><p className="groups-section-kicker">Partidos de hoy</p><h2 className="groups-section-title">Marcadores y calendario</h2><p className="groups-section-description">Estos son los partidos programados para el dia seleccionado y su estado oficial.</p></div>
-          <span className="groups-validation-pill is-valid"><Clock className="h-4 w-4" /><span>{openDayMatches.length} abiertos</span></span>
-        </div>
-        <div className="results-match-list">
-          {dayMatches.length ? dayMatches.map((match) => <MatchDayCard key={match.id} match={match} prediction={predictionByMatchId.get(match.id)} teamById={teamById} />) : <div className="groups-stage-feedback">No hay partidos del Mundial para este dia. Prueba otra fecha del calendario.</div>}
+      <div className="results-mobile-overview-marquee" aria-label="Resumen de resultados">
+        <div className="results-mobile-overview-track">
+          {[0, 1].map((groupIndex) => (
+            <div
+              key={`results-overview-group-${groupIndex}`}
+              className="results-mobile-overview-group"
+              aria-hidden={groupIndex === 1 ? 'true' : undefined}
+            >
+              {overviewCards.map((card) => (
+                <ResultsOverviewCard
+                  key={`${groupIndex}-${card.key}`}
+                  icon={card.icon}
+                  label={card.label}
+                  note={card.note}
+                  value={card.value}
+                />
+              ))}
+            </div>
+          ))}
         </div>
       </div>
-      <div className="results-prediction-panel">
-        <div className="groups-summary-head">
-          <div className="groups-section-copy"><p className="groups-section-kicker">Predice tus resultados</p><h2 className="groups-section-title">Marcador exacto</h2><p className="groups-section-description">Escribe el marcador, confirma y queda bloqueado. Solo puedes guardar antes de que cierre el partido.</p></div>
-          <span className="groups-validation-pill"><Save className="h-4 w-4" /><span>+2 pts exacto</span></span>
-        </div>
-        <div className="results-prediction-list">
-          {dayMatches.length ? dayMatches.map((match) => <PredictionCard key={`prediction-${match.id}`} draft={drafts[match.id]} match={match} onDraftChange={handleDraftChange} onRequestSave={requestSavePrediction} prediction={predictionByMatchId.get(match.id)} teamById={teamById} />) : <div className="groups-stage-feedback">No hay partidos disponibles para predecir en esta fecha.</div>}
-        </div>
+      <div className="results-tab-shell" role="tablist" aria-label="Cambiar entre partidos y predicciones">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'matches'}
+          className={`results-tab-button${activeTab === 'matches' ? ' is-active' : ''}`}
+          onClick={() => setActiveTab('matches')}
+        >
+          <span className="results-tab-label">En vivo / Partidos</span>
+          <span className="results-tab-meta">{dayMatches.length} del dia</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'predictions'}
+          className={`results-tab-button${activeTab === 'predictions' ? ' is-active' : ''}`}
+          onClick={() => setActiveTab('predictions')}
+        >
+          <span className="results-tab-label">Predecir resultados</span>
+          <span className="results-tab-meta">{openDayMatches.length} abiertos</span>
+        </button>
       </div>
+      {activeTab === 'matches' ? (
+        <div className="results-day-panel" role="tabpanel">
+          <div className="groups-summary-head">
+            <div className="groups-section-copy"><p className="groups-section-kicker">Partidos de hoy</p><h2 className="groups-section-title">Marcadores y calendario</h2><p className="groups-section-description">Estos son los partidos programados para el dia seleccionado y su estado oficial.</p></div>
+            <span className="groups-validation-pill is-valid"><Clock className="h-4 w-4" /><span>{openDayMatches.length} abiertos</span></span>
+          </div>
+          <div className="results-match-list">
+            {dayMatches.length ? dayMatches.map((match) => <MatchDayCard key={match.id} match={match} prediction={predictionByMatchId.get(match.id)} teamById={teamById} />) : <div className="groups-stage-feedback">No hay partidos del Mundial para este dia. Prueba otra fecha del calendario.</div>}
+          </div>
+        </div>
+      ) : (
+        <div className="results-prediction-panel" role="tabpanel">
+          <div className="groups-summary-head">
+            <div className="groups-section-copy"><p className="groups-section-kicker">Predice tus resultados</p><h2 className="groups-section-title">Marcador exacto</h2><p className="groups-section-description">Escribe el marcador, confirma y queda bloqueado. Solo puedes guardar antes de que cierre el partido.</p></div>
+            <span className="groups-validation-pill"><Save className="h-4 w-4" /><span>+2 pts exacto</span></span>
+          </div>
+          <div className="results-prediction-list">
+            {dayMatches.length ? dayMatches.map((match) => <PredictionCard key={`prediction-${match.id}`} draft={drafts[match.id]} match={match} onDraftChange={handleDraftChange} onRequestSave={requestSavePrediction} prediction={predictionByMatchId.get(match.id)} teamById={teamById} />) : <div className="groups-stage-feedback">No hay partidos disponibles para predecir en esta fecha.</div>}
+          </div>
+        </div>
+      )}
       <Modal open={Boolean(pendingPrediction)} title="Confirmar marcador" onClose={() => (saving ? null : setPendingPrediction(null))}>
         {pendingPrediction ? (
           <div className="results-confirm-modal">

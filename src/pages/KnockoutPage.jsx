@@ -162,6 +162,44 @@ function buildPreviewBestThirds(matchDefinitions = [], groupPredictions = [], te
   }))
 }
 
+function KnockoutOverviewCard({ championTeam, deadline, label, type = 'value', value }) {
+  return (
+    <div className="dashboard-overview-card knockout-overview-card">
+      <span className="dashboard-overview-label">{label}</span>
+      {type === 'timer' ? (
+        <div className="dashboard-overview-timer">
+          <CountdownTimer deadline={deadline} />
+        </div>
+      ) : type === 'champion' ? (
+        <div className="knockout-overview-champion">
+          {championTeam ? (
+            <>
+              <TeamOrb team={championTeam} />
+              <strong>{championTeam.name}</strong>
+            </>
+          ) : (
+            <strong>Pendiente</strong>
+          )}
+        </div>
+      ) : (
+        <strong className="dashboard-overview-value">{value}</strong>
+      )}
+    </div>
+  )
+}
+
+function KnockoutRoundProgressCard({ kicker, total, value }) {
+  return (
+    <div className="knockout-round-progress-card">
+      <span className="knockout-round-progress-kicker">{kicker}</span>
+      <strong className="knockout-round-progress-value">
+        {value}/{total}
+      </strong>
+      <span className="knockout-round-progress-copy">Llaves con ganador</span>
+    </div>
+  )
+}
+
 export default function KnockoutPage() {
   const { user } = useAuth()
   const { teams, error: teamsError } = useTeams()
@@ -313,6 +351,32 @@ export default function KnockoutPage() {
     return () => window.clearTimeout(timeoutId)
   }, [championTeam?.id])
 
+  const overviewCards = useMemo(
+    () => [
+      {
+        key: 'resolved',
+        label: 'Llaves resueltas',
+        value: `${resolvedCount}/31 completas`,
+      },
+      {
+        key: 'thirds',
+        label: 'Terceros listos',
+        value: `${activeThirdsCount}/8 elegidos`,
+      },
+      {
+        key: 'champion',
+        label: 'Campeon',
+        type: 'champion',
+      },
+      {
+        key: 'deadline',
+        label: 'Cierre',
+        type: 'timer',
+      },
+    ],
+    [activeThirdsCount, resolvedCount]
+  )
+
   function handlePreviewPick(matchCode, winnerTeamId) {
     setPreviewPredictions((current) => {
       const existing = current.find((item) => item.match_code === matchCode)
@@ -420,33 +484,39 @@ export default function KnockoutPage() {
         </div>
       </div>
 
-      <div className="dashboard-services-overview knockout-overview-grid">
-        <div className="dashboard-overview-card">
-          <span className="dashboard-overview-label">Llaves resueltas</span>
-          <strong className="dashboard-overview-value">{resolvedCount}/31 completas</strong>
-        </div>
-        <div className="dashboard-overview-card">
-          <span className="dashboard-overview-label">Terceros listos</span>
-          <strong className="dashboard-overview-value">{activeThirdsCount}/8 elegidos</strong>
-        </div>
-        <div className="dashboard-overview-card">
-          <span className="dashboard-overview-label">Campeon</span>
-          <div className="knockout-overview-champion">
-            {championTeam ? (
-              <>
-                <TeamOrb team={championTeam} />
-                <strong>{championTeam.name}</strong>
-              </>
-            ) : (
-              <strong>Pendiente</strong>
-            )}
-          </div>
-        </div>
-        <div className="dashboard-overview-card">
-          <span className="dashboard-overview-label">Cierre</span>
-          <div className="dashboard-overview-timer">
-            <CountdownTimer deadline={config?.deadline} />
-          </div>
+      <div className="dashboard-services-overview knockout-overview-grid knockout-overview-grid-desktop">
+        {overviewCards.map((card) => (
+          <KnockoutOverviewCard
+            key={card.key}
+            championTeam={championTeam}
+            deadline={config?.deadline}
+            label={card.label}
+            type={card.type}
+            value={card.value}
+          />
+        ))}
+      </div>
+
+      <div className="knockout-mobile-overview-marquee" aria-label="Resumen de eliminatorias">
+        <div className="knockout-mobile-overview-track">
+          {[0, 1].map((groupIndex) => (
+            <div
+              key={`knockout-overview-group-${groupIndex}`}
+              className="knockout-mobile-overview-group"
+              aria-hidden={groupIndex === 1 ? 'true' : undefined}
+            >
+              {overviewCards.map((card) => (
+                <KnockoutOverviewCard
+                  key={`${groupIndex}-${card.key}`}
+                  championTeam={championTeam}
+                  deadline={config?.deadline}
+                  label={card.label}
+                  type={card.type}
+                  value={card.value}
+                />
+              ))}
+            </div>
+          ))}
         </div>
       </div>
 
@@ -491,16 +561,36 @@ export default function KnockoutPage() {
               </p>
             </div>
 
-            <div className="knockout-round-progress-grid">
+            <div className="knockout-round-progress-grid knockout-round-progress-grid-desktop">
               {summary.map((item) => (
-                <div key={item.round} className="knockout-round-progress-card">
-                  <span className="knockout-round-progress-kicker">{ROUND_LABELS[item.round]}</span>
-                  <strong className="knockout-round-progress-value">
-                    {item.count}/{activeMatches.filter((match) => match.round === item.round).length}
-                  </strong>
-                  <span className="knockout-round-progress-copy">Llaves con ganador</span>
-                </div>
+                <KnockoutRoundProgressCard
+                  key={item.round}
+                  kicker={ROUND_LABELS[item.round]}
+                  total={activeMatches.filter((match) => match.round === item.round).length}
+                  value={item.count}
+                />
               ))}
+            </div>
+
+            <div className="knockout-mobile-progress-marquee" aria-label="Progreso por ronda">
+              <div className="knockout-mobile-progress-track">
+                {[0, 1].map((groupIndex) => (
+                  <div
+                    key={`knockout-progress-group-${groupIndex}`}
+                    className="knockout-mobile-progress-group"
+                    aria-hidden={groupIndex === 1 ? 'true' : undefined}
+                  >
+                    {summary.map((item) => (
+                      <KnockoutRoundProgressCard
+                        key={`${groupIndex}-${item.round}`}
+                        kicker={ROUND_LABELS[item.round]}
+                        total={activeMatches.filter((match) => match.round === item.round).length}
+                        value={item.count}
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -510,6 +600,7 @@ export default function KnockoutPage() {
             onPick={previewMode ? handlePreviewPick : handlePick}
             championTeam={championTeam}
             celebrate={showCelebration}
+            isSimulationMode={previewMode}
           />
         </>
       )}

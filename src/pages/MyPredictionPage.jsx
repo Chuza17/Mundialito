@@ -3,6 +3,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner'
 import Toast from '../components/common/Toast'
 import PredictionSummaryShowcase from '../components/predictions/PredictionSummaryShowcase'
 import { useAuth } from '../hooks/useAuth'
+import { useAppLayoutChromeHidden } from '../hooks/useAppLayoutChrome'
 import { useBestThirds } from '../hooks/useBestThirds'
 import { useGroupPredictions } from '../hooks/useGroupPredictions'
 import { useKnockoutMatches } from '../hooks/useKnockoutMatches'
@@ -28,6 +29,8 @@ export default function MyPredictionPage() {
   const [sharePending, setSharePending] = useState(false)
 
   const loading = teamsLoading || groups.loading || thirds.loading || matches.loading || knockout.loading
+  useAppLayoutChromeHidden(loading)
+
   const loadErrors = [teamsError, groups.error, thirds.error, matches.error, knockout.error].filter(Boolean)
   const teamMap = useMemo(() => buildTeamMap(teams), [teams])
   const groupRows = useMemo(() => enrichGroupRows(groups.predictions, teamMap), [groups.predictions, teamMap])
