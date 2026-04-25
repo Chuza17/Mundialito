@@ -2307,6 +2307,10 @@ textarea {
   pointer-events: none;
 }
 
+.app-bottom-nav {
+  display: none;
+}
+
 .mobile-dock-admin-row,
 .mobile-dock-shell {
   pointer-events: auto;
@@ -6286,6 +6290,10 @@ textarea {
 }
 
 @media (max-width: 1023px) {
+  .app-bottom-nav {
+    display: grid;
+  }
+
   .app-layout-main {
     padding-bottom: calc(8.75rem + env(safe-area-inset-bottom, 0px));
   }

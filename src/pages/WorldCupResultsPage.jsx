@@ -72,7 +72,20 @@ async function mapFunctionError(error, fallbackMessage) {
       const status = error.context.status
       const payload = await error.context.json()
       if (status === 401 || status === 403) return 'Tu sesion admin expiro o no tiene permisos para ejecutar resultados.'
-      return payload?.error || payload?.message || fallbackMessage
+
+      const serverMessage = payload?.error || payload?.message || fallbackMessage
+      const rawDetails = payload?.details
+      const details =
+        typeof rawDetails === 'string'
+          ? rawDetails
+          : rawDetails && typeof rawDetails === 'object' && typeof rawDetails.message === 'string'
+            ? rawDetails.message
+            : rawDetails
+              ? JSON.stringify(rawDetails)
+              : ''
+
+      if (!details || details === serverMessage) return serverMessage
+      return `${serverMessage} Detalle: ${details}`
     } catch {
       return fallbackMessage
     }

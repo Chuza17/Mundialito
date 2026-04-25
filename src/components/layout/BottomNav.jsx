@@ -21,7 +21,7 @@ export default function BottomNav({ items }) {
   const rightItems = rightRoutes.map((route) => itemByRoute.get(route)).filter(Boolean)
 
   return (
-    <nav className="mobile-dock-nav lg:hidden" aria-label="Menu movil principal">
+    <nav className="mobile-dock-nav app-bottom-nav lg:hidden" aria-label="Menu movil principal">
       {adminItem ? (
         <div className="mobile-dock-admin-row">
           <Link
