@@ -2,6 +2,10 @@ function getProfileLabel(profile = {}) {
   return profile.display_name || profile.username || 'Usuario'
 }
 
+export function getLeaderboardLabel(entry) {
+  return getProfileLabel(entry?.profiles)
+}
+
 function compareLeaderboardEntries(left, right) {
   const leftTotal = Number(left?.total_points ?? 0)
   const rightTotal = Number(right?.total_points ?? 0)
@@ -70,5 +74,31 @@ export async function fetchLeaderboardEntries(client) {
   return {
     data: buildLeaderboardEntries(profiles ?? [], scoreRows ?? []),
     error: scoresError ?? null,
+  }
+}
+
+export function getLeaderboardSpotlight(entries = [], userId) {
+  const currentUserIndex = (entries ?? []).findIndex((entry) => entry.user_id === userId)
+
+  if (currentUserIndex >= 0) {
+    return {
+      mode: 'current',
+      rank: currentUserIndex + 1,
+      entry: entries[currentUserIndex],
+    }
+  }
+
+  if (entries?.length) {
+    return {
+      mode: 'leader',
+      rank: 1,
+      entry: entries[0],
+    }
+  }
+
+  return {
+    mode: 'empty',
+    rank: null,
+    entry: null,
   }
 }

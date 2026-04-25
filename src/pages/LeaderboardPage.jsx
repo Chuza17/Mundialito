@@ -6,6 +6,7 @@ import { useAppConfig } from '../hooks/useAppConfig'
 import { useAppLayoutChromeHidden } from '../hooks/useAppLayoutChrome'
 import { useAuth } from '../hooks/useAuth'
 import { useLeaderboard } from '../hooks/useLeaderboard'
+import { getLeaderboardLabel, getLeaderboardSpotlight } from '../utils/leaderboard'
 import messiBackground from '../assets/branding/messi_background.jpg'
 
 function getBreakdownValue(entry, key) {
@@ -36,8 +37,15 @@ export default function LeaderboardPage() {
   const { leaderboard, loading, error } = useLeaderboard()
   useAppLayoutChromeHidden(loading)
 
-  const currentUserIndex = leaderboard.findIndex((entry) => entry.user_id === user?.id)
-  const currentUserEntry = currentUserIndex >= 0 ? leaderboard[currentUserIndex] : null
+  const spotlight = getLeaderboardSpotlight(leaderboard, user?.id)
+  const spotlightEntry = spotlight.entry
+  const spotlightRankLabel = spotlight.rank ? `#${spotlight.rank}` : '--'
+  const spotlightCopy =
+    spotlight.mode === 'current'
+      ? `${spotlightEntry?.total_points ?? 0} pts acumulados`
+      : spotlight.mode === 'leader'
+        ? `${getLeaderboardLabel(spotlightEntry)} lidera con ${spotlightEntry?.total_points ?? 0} pts`
+        : 'La posicion aparecera cuando exista al menos un jugador visible en la tabla general.'
 
   if (loading) {
     return (
@@ -93,13 +101,9 @@ export default function LeaderboardPage() {
 
         <div className="scoreboard-hero-side">
           <div className="scoreboard-hero-stat">
-            <span className="scoreboard-hero-stat-label">Tu puesto</span>
-            <strong className="scoreboard-hero-stat-value">{currentUserIndex >= 0 ? `#${currentUserIndex + 1}` : '--'}</strong>
-            <p className="scoreboard-hero-stat-copy">
-              {currentUserEntry
-                ? `${currentUserEntry.total_points ?? 0} pts acumulados`
-                : 'Tu posicion aparece apenas tu usuario este activo en la tabla general.'}
-            </p>
+            <span className="scoreboard-hero-stat-label">{spotlight.mode === 'current' ? 'Tu puesto' : 'Lider actual'}</span>
+            <strong className="scoreboard-hero-stat-value">{spotlightRankLabel}</strong>
+            <p className="scoreboard-hero-stat-copy">{spotlightCopy}</p>
           </div>
 
           <div className="scoreboard-hero-stat">
@@ -204,6 +208,73 @@ export default function LeaderboardPage() {
               </div>
             )}
           </div>
+        </div>
+
+        <div className="scoreboard-mobile-list">
+          {leaderboard.length ? (
+            leaderboard.map((entry, index) => {
+              const isCurrent = entry.user_id === user?.id
+              const groupPoints = getGroupStagePoints(entry)
+              const knockoutPoints = getKnockoutPoints(entry)
+              const bonusPoints =
+                getBreakdownValue(entry, 'champion_bonus_points') +
+                getBreakdownValue(entry, 'match_score_bonus_points')
+              const progress = Number(entry.completion_percentage ?? 0)
+
+              return (
+                <Link
+                  key={`mobile-${entry.user_id}-${index}`}
+                  to={`/predictions/${entry.user_id}`}
+                  className={`scoreboard-mobile-card${isCurrent ? ' is-current' : ''}`}
+                >
+                  <div className="scoreboard-mobile-card-top">
+                    <div className="scoreboard-mobile-card-rank">
+                      <span>Pos</span>
+                      <strong>#{index + 1}</strong>
+                    </div>
+
+                    <div className="scoreboard-mobile-card-player">
+                      <strong>{entry.profiles?.display_name ?? entry.profiles?.username ?? 'Usuario'}</strong>
+                      <span>@{entry.profiles?.username ?? 'sin-username'}</span>
+                    </div>
+                  </div>
+
+                  <div className="scoreboard-mobile-card-grid">
+                    <div className="scoreboard-mobile-card-stat">
+                      <span>Grupos</span>
+                      <strong>{groupPoints} pts</strong>
+                    </div>
+                    <div className="scoreboard-mobile-card-stat">
+                      <span>Eliminatorias</span>
+                      <strong>{knockoutPoints} pts</strong>
+                    </div>
+                    <div className="scoreboard-mobile-card-stat">
+                      <span>Bonus</span>
+                      <strong>{bonusPoints}</strong>
+                    </div>
+                    <div className="scoreboard-mobile-card-stat is-total">
+                      <span>Total</span>
+                      <strong>{entry.total_points ?? 0} pts</strong>
+                    </div>
+                  </div>
+
+                  <div className="scoreboard-mobile-card-progress">
+                    <div className="scoreboard-mobile-card-progress-row">
+                      <span>Avance</span>
+                      <strong>{progress}%</strong>
+                    </div>
+                    <div className="scoreboard-table-progress-bar">
+                      <div className="scoreboard-table-progress-fill" style={{ width: `${progress}%` }} />
+                    </div>
+                  </div>
+                </Link>
+              )
+            })
+          ) : (
+            <div className="groups-stage-feedback">
+              Todavia no hay jugadores activos visibles en el scoreboard. Apenas exista un usuario activo, aqui aparecera la tabla.
+            </div>
+          )}
         </div>
       </div>
     </section>

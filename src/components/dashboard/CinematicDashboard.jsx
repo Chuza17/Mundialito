@@ -110,7 +110,7 @@ export default function CinematicDashboard({
   name,
   progress,
   score = 0,
-  leaderboardRank = null,
+  leaderboardSpotlight = { mode: 'empty', rank: null, entry: null },
   leaderboardLoading = false,
   sections,
   userId,
@@ -128,7 +128,20 @@ export default function CinematicDashboard({
   const [pointsGuideOpen, setPointsGuideOpen] = useState(false)
   const scoreNumber = Number(score ?? 0)
   const scoreLabel = Number.isFinite(scoreNumber) ? scoreNumber.toLocaleString('es-CR') : '0'
-  const rankLabel = leaderboardLoading ? '...' : leaderboardRank ? `#${leaderboardRank}` : '--'
+  const spotlightEntry = leaderboardSpotlight?.entry ?? null
+  const spotlightRank = leaderboardSpotlight?.rank ?? null
+  const spotlightName = spotlightEntry?.profiles?.display_name ?? spotlightEntry?.profiles?.username ?? 'Jugador'
+  const spotlightPoints = Number(spotlightEntry?.total_points ?? 0)
+  const rankLabel = leaderboardLoading ? '...' : spotlightRank ? `#${spotlightRank}` : '--'
+  const rankSmallLabel =
+    leaderboardSpotlight?.mode === 'current' ? 'Tu posicion' : leaderboardSpotlight?.mode === 'leader' ? 'Lider actual' : 'Tabla general'
+  const rankCopy = leaderboardLoading
+    ? 'Actualizando scoreboard...'
+    : leaderboardSpotlight?.mode === 'current'
+      ? `${spotlightPoints} pts acumulados`
+      : leaderboardSpotlight?.mode === 'leader'
+        ? `${spotlightName} lidera el scoreboard con ${spotlightPoints} pts`
+        : 'La posicion aparecera cuando exista al menos un jugador visible en la tabla.'
   const sectionByRoute = new Map(sections.map((section) => [section.to, section]))
   const leftSections = ['/groups', '/best-thirds', '/knockout'].map((route) => sectionByRoute.get(route)).filter(Boolean)
   const rightSections = ['/results', '/my-prediction'].map((route) => sectionByRoute.get(route)).filter(Boolean)
@@ -394,7 +407,7 @@ export default function CinematicDashboard({
         <div className={`cinematic-mobile-hero-rank${hasStartedScroll ? ' is-hidden' : ''}`} aria-live="polite">
           <span>Puesto general</span>
           <strong>{rankLabel}</strong>
-          <small>Tabla general</small>
+          <small>{rankSmallLabel}</small>
         </div>
 
         <img
@@ -433,6 +446,10 @@ export default function CinematicDashboard({
           </p>
         </div>
       ) : null}
+
+      <div className="cinematic-mobile-rank-copy" aria-live="polite">
+        <span>{rankCopy}</span>
+      </div>
 
       <div className="cinematic-scroll-intro">
         <span className="scroll-ball">

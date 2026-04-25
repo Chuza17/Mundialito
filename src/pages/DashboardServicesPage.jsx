@@ -16,14 +16,14 @@ import { useGroupPredictions } from '../hooks/useGroupPredictions'
 import { useKnockoutMatches } from '../hooks/useKnockoutMatches'
 import { useKnockoutPredictions } from '../hooks/useKnockoutPredictions'
 import { useTeams } from '../hooks/useTeams'
-import { fetchLeaderboardEntries } from '../utils/leaderboard'
+import { fetchLeaderboardEntries, getLeaderboardSpotlight } from '../utils/leaderboard'
 import { getProgressPercentage } from '../utils/helpers'
 
 export default function DashboardServicesPage() {
   const { user, profile, authError, isAdmin } = useAuth()
   const [score, setScore] = useState(0)
   const [scoreError, setScoreError] = useState(null)
-  const [leaderboardRank, setLeaderboardRank] = useState(null)
+  const [leaderboardSpotlight, setLeaderboardSpotlight] = useState({ mode: 'empty', rank: null, entry: null })
   const [leaderboardLoading, setLeaderboardLoading] = useState(false)
   const { teams, error: teamsError } = useTeams()
   const { config, error: configError } = useAppConfig()
@@ -93,7 +93,7 @@ export default function DashboardServicesPage() {
 
   useEffect(() => {
     if (!user?.id) {
-      setLeaderboardRank(null)
+      setLeaderboardSpotlight({ mode: 'empty', rank: null, entry: null })
       setLeaderboardLoading(false)
       return undefined
     }
@@ -107,8 +107,7 @@ export default function DashboardServicesPage() {
 
       if (!isActive) return
 
-      const currentUserIndex = (data ?? []).findIndex((entry) => entry.user_id === user.id)
-      setLeaderboardRank(currentUserIndex >= 0 ? currentUserIndex + 1 : null)
+      setLeaderboardSpotlight(getLeaderboardSpotlight(data ?? [], user.id))
       setLeaderboardLoading(false)
     }
 
@@ -253,7 +252,7 @@ export default function DashboardServicesPage() {
       name={name}
       progress={progress}
       score={score}
-      leaderboardRank={leaderboardRank}
+      leaderboardSpotlight={leaderboardSpotlight}
       leaderboardLoading={leaderboardLoading}
       sections={sections}
       userId={user?.id}
