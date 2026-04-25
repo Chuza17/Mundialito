@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../config/supabase'
+import { fetchLeaderboardEntries } from '../utils/leaderboard'
 
 export function useLeaderboard() {
   const [leaderboard, setLeaderboard] = useState([])
@@ -30,28 +31,9 @@ export function useLeaderboard() {
 
   async function fetchLeaderboard() {
     setLoading(true)
-    setError(null)
+    const { data, error: fetchError } = await fetchLeaderboardEntries(supabase)
 
-    const { data, error: fetchError } = await supabase
-      .from('user_scores')
-      .select(`
-        user_id,
-        total_points,
-        completion_percentage,
-        last_calculated_at,
-        match_score_bonus_points,
-        breakdown,
-        profiles(display_name, username)
-      `)
-      .order('total_points', { ascending: false })
-
-    if (fetchError) {
-      setError(fetchError)
-      setLeaderboard([])
-      setLoading(false)
-      return
-    }
-
+    setError(fetchError)
     setLeaderboard(data ?? [])
     setLoading(false)
   }

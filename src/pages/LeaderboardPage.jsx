@@ -1,4 +1,4 @@
-import { ArrowLeft, CalendarClock, Crown, Gift, Shield, Trophy, Users2 } from 'lucide-react'
+import { ArrowLeft, CalendarClock, Trophy, Users2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import CountdownTimer from '../components/common/CountdownTimer'
@@ -7,13 +7,6 @@ import { useAppLayoutChromeHidden } from '../hooks/useAppLayoutChrome'
 import { useAuth } from '../hooks/useAuth'
 import { useLeaderboard } from '../hooks/useLeaderboard'
 import messiBackground from '../assets/branding/messi_background.jpg'
-
-function formatAmount(value) {
-  return new Intl.NumberFormat('es-CR', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(Number(value ?? 0))
-}
 
 function getBreakdownValue(entry, key) {
   return Number(entry?.breakdown?.[key] ?? entry?.[key] ?? 0)
@@ -37,21 +30,6 @@ function getKnockoutPoints(entry) {
   )
 }
 
-function PrizeCard({ icon: Icon, label, note, value, accentClass = '' }) {
-  return (
-    <article className={`scoreboard-prize-card${accentClass ? ` ${accentClass}` : ''}`}>
-      <div className="scoreboard-prize-icon">
-        <Icon className="h-5 w-5" />
-      </div>
-      <div className="scoreboard-prize-copy">
-        <span className="scoreboard-prize-label">{label}</span>
-        <strong className="scoreboard-prize-value">{value}</strong>
-        <p className="scoreboard-prize-note">{note}</p>
-      </div>
-    </article>
-  )
-}
-
 export default function LeaderboardPage() {
   const { user } = useAuth()
   const { config } = useAppConfig()
@@ -60,7 +38,6 @@ export default function LeaderboardPage() {
 
   const currentUserIndex = leaderboard.findIndex((entry) => entry.user_id === user?.id)
   const currentUserEntry = currentUserIndex >= 0 ? leaderboard[currentUserIndex] : null
-  const totalPrizePool = Number(config?.group_stage_prize ?? 0) + Number(config?.knockout_prize ?? 0)
 
   if (loading) {
     return (
@@ -97,21 +74,19 @@ export default function LeaderboardPage() {
         <div className="scoreboard-hero-overlay" />
 
         <div className="scoreboard-hero-copy">
-          <p className="scoreboard-hero-kicker">Scoreboard</p>
-          <h1 className="scoreboard-hero-title">Premios y tabla general del torneo</h1>
+          <p className="scoreboard-hero-kicker">Tabla general</p>
+          <h1 className="scoreboard-hero-title">Scoreboard del torneo</h1>
           <p className="scoreboard-hero-description">
-            Sigue la competencia del Mundialito con una vista mas clara: premios activos arriba, tabla general abajo y acceso
-            directo a la prediccion de cada jugador.
+            Sigue la competencia del Mundialito con una vista clara de posiciones, avance y puntos oficiales del torneo.
           </p>
 
           <div className="scoreboard-hero-actions">
             <span className="scoreboard-hero-chip">
-              <Gift className="h-4 w-4" />
-              <span>Premios configurables por el admin</span>
-            </span>
-            <span className="scoreboard-hero-chip">
               <Trophy className="h-4 w-4" />
               <span>{leaderboard.length} jugadores en competencia</span>
+            </span>
+            <span className="scoreboard-hero-chip">
+              <span>Solo cuentan resultados oficiales del Mundial</span>
             </span>
           </div>
         </div>
@@ -123,7 +98,7 @@ export default function LeaderboardPage() {
             <p className="scoreboard-hero-stat-copy">
               {currentUserEntry
                 ? `${currentUserEntry.total_points ?? 0} pts acumulados`
-                : 'Tu posicion aparecera cuando existan puntos calculados.'}
+                : 'Tu posicion aparece apenas tu usuario este activo en la tabla general.'}
             </p>
           </div>
 
@@ -137,30 +112,6 @@ export default function LeaderboardPage() {
           </div>
         </div>
       </article>
-
-      <div className="scoreboard-prize-strip">
-        <PrizeCard
-          icon={Gift}
-          label="Premio fase de grupos"
-          value={formatAmount(config?.group_stage_prize ?? 0)}
-          note="Monto editable por el admin master desde el panel de usuarios."
-          accentClass="is-groups"
-        />
-        <PrizeCard
-          icon={Shield}
-          label="Premio eliminatorias"
-          value={formatAmount(config?.knockout_prize ?? 0)}
-          note="Se muestra en vivo para todos los jugadores dentro del scoreboard."
-          accentClass="is-knockout"
-        />
-        <PrizeCard
-          icon={Crown}
-          label="Pozo total visible"
-          value={formatAmount(totalPrizePool)}
-          note="Suma de los premios configurados para grupos y eliminatorias."
-          accentClass="is-total"
-        />
-      </div>
 
       <div className="groups-summary-panel scoreboard-table-panel">
         <div className="groups-summary-head">
@@ -249,7 +200,7 @@ export default function LeaderboardPage() {
               })
             ) : (
               <div className="groups-stage-feedback">
-                Todavia no hay puntajes calculados en `user_scores`. Apenas el admin ejecute el recalculo, aqui apareceran las posiciones.
+                Todavia no hay jugadores activos visibles en el scoreboard. Apenas exista un usuario activo, aqui aparecera la tabla.
               </div>
             )}
           </div>

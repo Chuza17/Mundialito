@@ -2,6 +2,9 @@ import { adminClient, requireAdminOrCron } from '../_shared/admin.ts'
 import { corsHeaders, errorResponse, jsonResponse } from '../_shared/http.ts'
 import { ROUND_POINTS, computeCompletionPercentage } from '../_shared/worldcup.ts'
 
+const FINISHED_MATCH_STATUSES = new Set(['FINISHED', 'AWARDED'])
+const GROUP_STAGE_MATCHES_PER_GROUP = 6
+
 function groupBy<T>(items: T[], keyGetter: (item: T) => string) {
   return items.reduce<Record<string, T[]>>((accumulator, item) => {
     const key = keyGetter(item)
@@ -32,6 +35,7 @@ Deno.serve(async (req: Request) => {
       { data: knockoutPredictions, error: knockoutPredictionsError },
       { data: knockoutMatches, error: knockoutMatchesError },
       { data: matchScoreBonuses, error: matchScoreBonusesError },
+      { data: worldCupMatches, error: worldCupMatchesError },
     ] = await Promise.all([
       adminClient.from('profiles').select('id, username, display_name, role, is_active').eq('role', 'user').eq('is_active', true),
       adminClient.from('real_results_groups').select('*'),
@@ -41,6 +45,7 @@ Deno.serve(async (req: Request) => {
       adminClient.from('knockout_predictions').select('*'),
       adminClient.from('knockout_matches').select('match_code, round'),
       adminClient.from('user_match_score_bonus').select('user_id, match_score_bonus_points'),
+      adminClient.from('world_cup_matches').select('group_letter, round, status'),
     ])
 
     if (profilesError || !profiles) return errorResponse('Unable to load profiles.', 500, profilesError?.message)
@@ -51,6 +56,7 @@ Deno.serve(async (req: Request) => {
     if (knockoutPredictionsError || !knockoutPredictions) return errorResponse('Unable to load knockout_predictions.', 500, knockoutPredictionsError?.message)
     if (knockoutMatchesError || !knockoutMatches) return errorResponse('Unable to load knockout_matches.', 500, knockoutMatchesError?.message)
     if (matchScoreBonusesError || !matchScoreBonuses) return errorResponse('Unable to load user_match_score_bonus.', 500, matchScoreBonusesError?.message)
+    if (worldCupMatchesError || !worldCupMatches) return errorResponse('Unable to load world_cup_matches.', 500, worldCupMatchesError?.message)
 
     const realGroupByTeamId = new Map(realGroupRows.map((row: any) => [row.team_id, row]))
     const realQualifiedThirdGroups = new Set(
@@ -58,6 +64,18 @@ Deno.serve(async (req: Request) => {
         .filter((row: any) => row.final_position === 3 && row.qualified_best_third)
         .map((row: any) => row.group_letter)
     )
+    const allGroupLetters = new Set(realGroupRows.map((row: any) => row.group_letter).filter(Boolean))
+    const groupStageMatchesByGroup = groupBy(
+      worldCupMatches.filter((row: any) => row.round === 'group_stage' && row.group_letter),
+      (row: any) => row.group_letter
+    )
+    const completedGroupLetters = new Set(
+      Object.entries(groupStageMatchesByGroup)
+        .filter(([, rows]) => rows.length >= GROUP_STAGE_MATCHES_PER_GROUP && rows.every((row: any) => FINISHED_MATCH_STATUSES.has(row.status)))
+        .map(([groupLetter]) => groupLetter)
+    )
+    const canScoreBestThirds =
+      allGroupLetters.size > 0 && allGroupLetters.size === completedGroupLetters.size
 
     const roundByMatchCode = new Map(knockoutMatches.map((row: any) => [row.match_code, row.round]))
     const realWinnerByMatchCode = new Map(
@@ -97,6 +115,7 @@ Deno.serve(async (req: Request) => {
       for (const prediction of userGroupPredictions) {
         const realRow = realGroupByTeamId.get(prediction.team_id)
         if (!realRow) continue
+        if (!completedGroupLetters.has(realRow.group_letter)) continue
 
         if (realRow.final_position === prediction.predicted_position) {
           groupExactPoints += 3
@@ -111,9 +130,11 @@ Deno.serve(async (req: Request) => {
         userBestThirds.filter((row: any) => row.qualifies).map((row: any) => row.group_letter)
       )
 
-      for (const groupLetter of predictedQualifiedThirdGroups) {
-        if (realQualifiedThirdGroups.has(groupLetter)) {
-          bestThirdPoints += 2
+      if (canScoreBestThirds) {
+        for (const groupLetter of predictedQualifiedThirdGroups) {
+          if (realQualifiedThirdGroups.has(groupLetter)) {
+            bestThirdPoints += 2
+          }
         }
       }
 

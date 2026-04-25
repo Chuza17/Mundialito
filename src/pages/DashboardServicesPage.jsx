@@ -16,6 +16,7 @@ import { useGroupPredictions } from '../hooks/useGroupPredictions'
 import { useKnockoutMatches } from '../hooks/useKnockoutMatches'
 import { useKnockoutPredictions } from '../hooks/useKnockoutPredictions'
 import { useTeams } from '../hooks/useTeams'
+import { fetchLeaderboardEntries } from '../utils/leaderboard'
 import { getProgressPercentage } from '../utils/helpers'
 
 export default function DashboardServicesPage() {
@@ -102,18 +103,9 @@ export default function DashboardServicesPage() {
     async function fetchLeaderboardRank() {
       setLeaderboardLoading(true)
 
-      const { data, error } = await supabase
-        .from('user_scores')
-        .select('user_id,total_points')
-        .order('total_points', { ascending: false })
+      const { data } = await fetchLeaderboardEntries(supabase)
 
       if (!isActive) return
-
-      if (error) {
-        setLeaderboardRank(null)
-        setLeaderboardLoading(false)
-        return
-      }
 
       const currentUserIndex = (data ?? []).findIndex((entry) => entry.user_id === user.id)
       setLeaderboardRank(currentUserIndex >= 0 ? currentUserIndex + 1 : null)
@@ -125,6 +117,7 @@ export default function DashboardServicesPage() {
     const channel = supabase
       .channel(`dashboard-rank-${user.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_scores' }, () => fetchLeaderboardRank())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => fetchLeaderboardRank())
       .subscribe()
 
     return () => {
