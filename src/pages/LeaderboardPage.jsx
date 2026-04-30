@@ -2,6 +2,7 @@ import { ArrowLeft, CalendarClock, Trophy, Users2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import CountdownTimer from '../components/common/CountdownTimer'
+import PrizeCarousel from '../components/common/PrizeCarousel'
 import { useAppConfig } from '../hooks/useAppConfig'
 import { useAppLayoutChromeHidden } from '../hooks/useAppLayoutChrome'
 import { useAuth } from '../hooks/useAuth'
@@ -116,6 +117,15 @@ export default function LeaderboardPage() {
           </div>
         </div>
       </article>
+
+      <div className="scoreboard-prizes-panel">
+        <PrizeCarousel
+          config={config}
+          eyebrow="Premios"
+          title="Podio del scoreboard"
+          className="is-scoreboard"
+        />
+      </div>
 
       <div className="groups-summary-panel scoreboard-table-panel">
         <div className="groups-summary-head">

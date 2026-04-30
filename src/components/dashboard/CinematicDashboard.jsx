@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowUpRight, Play } from 'lucide-react'
+import { ArrowUpRight, Crown, Gift, Play, Trophy } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import CountdownTimer from '../common/CountdownTimer'
 import { POINTER_TRAIL_STORAGE_KEY, POINTER_TRAIL_TOGGLE_EVENT } from '../common/PointerTrail'
@@ -14,6 +14,13 @@ import pointsHelpButtonImage from '../../assets/branding/points-help-button.png'
 import pointsSystemImage from '../../assets/branding/points-system.png'
 import scrollBallImage from '../../assets/branding/world-cup-ball-2026.png'
 import { publicAsset } from '../../utils/publicAsset'
+import { formatPrizeAmount, getPrizeCards } from '../../utils/prizes'
+
+const PRIZE_ICONS = {
+  trophy: Trophy,
+  crown: Crown,
+  gift: Gift,
+}
 
 function getStoredNeonPreference() {
   try {
@@ -104,16 +111,50 @@ function CinematicCard({ section, index }) {
   )
 }
 
+function DashboardPrizeStat({ config }) {
+  const prizes = getPrizeCards(config)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const activePrize = prizes[activeIndex] ?? prizes[0]
+  const Icon = PRIZE_ICONS[activePrize?.icon] ?? Trophy
+
+  useEffect(() => {
+    if (prizes.length <= 1) return undefined
+
+    const intervalId = window.setInterval(() => {
+      setActiveIndex((current) => (current + 1) % prizes.length)
+    }, 5000)
+
+    return () => window.clearInterval(intervalId)
+  }, [prizes.length])
+
+  if (!activePrize) return null
+
+  return (
+    <article className={`cinematic-hero-stat-card cinematic-hero-prize-card ${activePrize.tone}`}>
+      <div key={activePrize.key} className="cinematic-hero-prize-content">
+        <div className="cinematic-hero-prize-head">
+          <span>Premios</span>
+          <div className="cinematic-hero-prize-icon" aria-hidden="true">
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
+        <strong>{formatPrizeAmount(activePrize.amount)}</strong>
+        <small>{activePrize.label}</small>
+      </div>
+    </article>
+  )
+}
+
 export default function CinematicDashboard({
   deadline,
   loadErrors,
   name,
-  progress,
   score = 0,
   leaderboardSpotlight = { mode: 'empty', rank: null, entry: null },
   leaderboardLoading = false,
   sections,
   userId,
+  prizesConfig,
 }) {
   const location = useLocation()
   const { tracks: musicTracks, selectedTrackId, musicPlaying, playTrack, toggleMusic } = useDashboardMusic()
@@ -128,20 +169,10 @@ export default function CinematicDashboard({
   const [pointsGuideOpen, setPointsGuideOpen] = useState(false)
   const scoreNumber = Number(score ?? 0)
   const scoreLabel = Number.isFinite(scoreNumber) ? scoreNumber.toLocaleString('es-CR') : '0'
-  const spotlightEntry = leaderboardSpotlight?.entry ?? null
   const spotlightRank = leaderboardSpotlight?.rank ?? null
-  const spotlightName = spotlightEntry?.profiles?.display_name ?? spotlightEntry?.profiles?.username ?? 'Jugador'
-  const spotlightPoints = Number(spotlightEntry?.total_points ?? 0)
   const rankLabel = leaderboardLoading ? '...' : spotlightRank ? `#${spotlightRank}` : '--'
   const rankSmallLabel =
     leaderboardSpotlight?.mode === 'current' ? 'Tu posicion' : leaderboardSpotlight?.mode === 'leader' ? 'Lider actual' : 'Tabla general'
-  const rankCopy = leaderboardLoading
-    ? 'Actualizando scoreboard...'
-    : leaderboardSpotlight?.mode === 'current'
-      ? `${spotlightPoints} pts acumulados`
-      : leaderboardSpotlight?.mode === 'leader'
-        ? `${spotlightName} lidera el scoreboard con ${spotlightPoints} pts`
-        : 'La posicion aparecera cuando exista al menos un jugador visible en la tabla.'
   const sectionByRoute = new Map(sections.map((section) => [section.to, section]))
   const leftSections = ['/groups', '/best-thirds', '/knockout'].map((route) => sectionByRoute.get(route)).filter(Boolean)
   const rightSections = ['/results', '/my-prediction'].map((route) => sectionByRoute.get(route)).filter(Boolean)
@@ -425,10 +456,7 @@ export default function CinematicDashboard({
             <span>Puntuacion</span>
             <strong>{scoreLabel} pts</strong>
           </article>
-          <article className="cinematic-hero-stat-card is-progress">
-            <span>Progreso</span>
-            <strong>{progress}%</strong>
-          </article>
+          <DashboardPrizeStat config={prizesConfig} />
           <article className="cinematic-hero-stat-card is-deadline">
             <span>Cierre</span>
             <strong>
@@ -446,10 +474,6 @@ export default function CinematicDashboard({
           </p>
         </div>
       ) : null}
-
-      <div className="cinematic-mobile-rank-copy" aria-live="polite">
-        <span>{rankCopy}</span>
-      </div>
 
       <div className="cinematic-scroll-intro">
         <span className="scroll-ball">

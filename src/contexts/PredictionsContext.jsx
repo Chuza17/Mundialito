@@ -11,6 +11,9 @@ export function PredictionsProvider({ children }) {
     predictions_locked: false,
     group_stage_prize: 0,
     knockout_prize: 0,
+    first_place_prize: 0,
+    second_place_prize: 0,
+    third_place_prize: 0,
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -38,6 +41,9 @@ export function PredictionsProvider({ children }) {
             predictions_locked: false,
             group_stage_prize: 0,
             knockout_prize: 0,
+            first_place_prize: 0,
+            second_place_prize: 0,
+            third_place_prize: 0,
             ...configData,
           })
         }
@@ -49,6 +55,9 @@ export function PredictionsProvider({ children }) {
           predictions_locked: false,
           group_stage_prize: 0,
           knockout_prize: 0,
+          first_place_prize: 0,
+          second_place_prize: 0,
+          third_place_prize: 0,
         })
         setError('No se pudieron cargar algunos datos base desde Supabase.')
       } finally {
@@ -88,6 +97,9 @@ export function PredictionsProvider({ children }) {
             predictions_locked: false,
             group_stage_prize: 0,
             knockout_prize: 0,
+            first_place_prize: 0,
+            second_place_prize: 0,
+            third_place_prize: 0,
             ...data,
           })
         }

@@ -11,19 +11,16 @@ import { useAdminUsers } from '../hooks/useAdminUsers'
 import { useAppConfig } from '../hooks/useAppConfig'
 import { useTeams } from '../hooks/useTeams'
 import { groupTeamsByLetter, validateGroupTable } from '../utils/helpers'
+import { formatPrizeAmount, getPrizePool } from '../utils/prizes'
 
 const ADMIN_SECTIONS = [
   { id: 'users', label: 'Usuarios', copy: 'Alta directa, control y soporte de cuentas.' },
-  { id: 'prizes', label: 'Premios', copy: 'Montos visibles para scoreboard y premios generales.' },
+  { id: 'prizes', label: 'Premios', copy: 'Podio visible en login, dashboard y scoreboard.' },
   { id: 'settings', label: 'Configuracion', copy: 'Cierre, bloqueo y ajustes operativos.' },
   { id: 'backup', label: 'Respaldo API', copy: 'Editor manual por si el feed externo falla.' },
 ]
 
 const MANUAL_GROUPS_STORAGE_KEY = 'admin-manual-groups-backup-v1'
-
-function formatMoney(amount) {
-  return `$${new Intl.NumberFormat('es-CR', { maximumFractionDigits: 0 }).format(Number(amount || 0))}`
-}
 
 function readManualDrafts() {
   if (typeof window === 'undefined') return {}
@@ -83,23 +80,25 @@ export default function AdminUsersPage() {
   const [configDraft, setConfigDraft] = useState({
     deadline: '',
     predictions_locked: false,
-    group_stage_prize: 0,
-    knockout_prize: 0,
+    first_place_prize: 0,
+    second_place_prize: 0,
+    third_place_prize: 0,
   })
 
   const teamsByGroup = groupTeamsByLetter(teams)
   const defaultManualDrafts = buildManualDrafts(teamsByGroup)
   const visibleUsers = users.filter((user) => user.role !== 'admin')
   const activeUsers = visibleUsers.filter((user) => user.is_active !== false)
-  const prizePool = Number(configDraft.group_stage_prize || 0) + Number(configDraft.knockout_prize || 0)
+  const prizePool = getPrizePool(configDraft)
   const manualReadyCount = Object.keys(manualDrafts).filter((letter) => validateGroupTable(manualDrafts[letter]).valid).length
 
   useEffect(() => {
     setConfigDraft({
       deadline: config?.deadline ?? '',
       predictions_locked: config?.predictions_locked ?? false,
-      group_stage_prize: Number(config?.group_stage_prize ?? 0),
-      knockout_prize: Number(config?.knockout_prize ?? 0),
+      first_place_prize: Number(config?.first_place_prize ?? 0),
+      second_place_prize: Number(config?.second_place_prize ?? 0),
+      third_place_prize: Number(config?.third_place_prize ?? 0),
     })
   }, [config])
 
@@ -144,8 +143,9 @@ export default function AdminUsersPage() {
     event.preventDefault()
     try {
       await updateConfig({
-        group_stage_prize: Number(configDraft.group_stage_prize || 0),
-        knockout_prize: Number(configDraft.knockout_prize || 0),
+        first_place_prize: Number(configDraft.first_place_prize || 0),
+        second_place_prize: Number(configDraft.second_place_prize || 0),
+        third_place_prize: Number(configDraft.third_place_prize || 0),
       })
       setToast({ type: 'success', message: 'Premios actualizados.' })
     } catch (error) {
@@ -259,8 +259,8 @@ export default function AdminUsersPage() {
             </article>
             <article className="admin-hub-metric">
               <span>Premios</span>
-              <strong>{formatMoney(prizePool)}</strong>
-              <small>Fase de grupos + eliminatorias</small>
+              <strong>{formatPrizeAmount(prizePool)}</strong>
+              <small>Primer + segundo + tercer lugar</small>
             </article>
             <article className="admin-hub-metric">
               <span>Modulo activo</span>

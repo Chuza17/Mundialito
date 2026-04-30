@@ -18,6 +18,7 @@ import { useKnockoutPredictions } from '../hooks/useKnockoutPredictions'
 import { useTeams } from '../hooks/useTeams'
 import { fetchLeaderboardEntries, getLeaderboardSpotlight } from '../utils/leaderboard'
 import { getProgressPercentage } from '../utils/helpers'
+import { formatPrizeAmount, getPrizePool } from '../utils/prizes'
 
 export default function DashboardServicesPage() {
   const { user, profile, authError, isAdmin } = useAuth()
@@ -45,6 +46,7 @@ export default function DashboardServicesPage() {
   const finalPredictionDone = knockout.predictions.some((prediction) => prediction.match_code === 'FIN_01')
   const isLocked = config?.predictions_locked
   const name = profile?.display_name ?? profile?.username ?? 'Jugador'
+  const prizePool = getPrizePool(config)
 
   useEffect(() => {
     if (!user?.id) {
@@ -200,7 +202,7 @@ export default function DashboardServicesPage() {
         title: 'Scoreboard',
         subtitle: 'Premios y tabla',
         description: 'Consulta premios activos, la tabla general y compara tu avance con el resto.',
-        summary: 'Premios configurables',
+        summary: `${formatPrizeAmount(prizePool)} en podio`,
         status: 'Ver scoreboard',
         icon: BarChart3,
         video: [
@@ -243,7 +245,7 @@ export default function DashboardServicesPage() {
     }
 
     return baseSections
-  }, [completedGroups, finalPredictionDone, isAdmin, isLocked, knockoutDone, progress, selectedThirds])
+  }, [completedGroups, finalPredictionDone, isAdmin, isLocked, knockoutDone, prizePool, progress, selectedThirds])
 
   return (
     <CinematicDashboard
@@ -256,6 +258,7 @@ export default function DashboardServicesPage() {
       leaderboardLoading={leaderboardLoading}
       sections={sections}
       userId={user?.id}
+      prizesConfig={config}
     />
   )
 }

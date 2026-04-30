@@ -1,9 +1,7 @@
-function formatMoney(amount) {
-  return `$${new Intl.NumberFormat('es-CR', { maximumFractionDigits: 0 }).format(Number(amount || 0))}`
-}
+import { PRIZE_PLACE_FIELDS, formatPrizeAmount, getPrizePool } from '../../utils/prizes'
 
 export default function AdminPrizesSection({ saving, draft, onChange, onSave }) {
-  const totalPrize = Number(draft.group_stage_prize || 0) + Number(draft.knockout_prize || 0)
+  const totalPrize = getPrizePool(draft)
 
   return (
     <div className="admin-hub-grid admin-hub-grid-prizes">
@@ -11,38 +9,28 @@ export default function AdminPrizesSection({ saving, draft, onChange, onSave }) 
         <div className="admin-hub-card-head">
           <div>
             <p className="admin-hub-eyebrow">Premios</p>
-            <h3 className="admin-hub-card-title">Montos visibles del torneo</h3>
+            <h3 className="admin-hub-card-title">Podio de premios</h3>
           </div>
           <span className="admin-hub-badge">Scoreboard</span>
         </div>
         <p className="admin-hub-card-copy">
-          Define cuanto se muestra publicamente para la fase de grupos y eliminatorias.
+          Define los montos publicos para primer, segundo y tercer lugar.
         </p>
 
         <div className="admin-prize-grid">
-          <label className="admin-hub-field">
-            <span>Premio fase de grupos</span>
-            <input
-              className="field-input"
-              type="number"
-              min="0"
-              step="1"
-              value={draft.group_stage_prize}
-              onChange={(event) => onChange('group_stage_prize', Number(event.target.value || 0))}
-            />
-          </label>
-
-          <label className="admin-hub-field">
-            <span>Premio eliminatorias</span>
-            <input
-              className="field-input"
-              type="number"
-              min="0"
-              step="1"
-              value={draft.knockout_prize}
-              onChange={(event) => onChange('knockout_prize', Number(event.target.value || 0))}
-            />
-          </label>
+          {PRIZE_PLACE_FIELDS.map((prize) => (
+            <label key={prize.key} className="admin-hub-field">
+              <span>{prize.label}</span>
+              <input
+                className="field-input"
+                type="number"
+                min="0"
+                step="1"
+                value={draft[prize.key]}
+                onChange={(event) => onChange(prize.key, Number(event.target.value || 0))}
+              />
+            </label>
+          ))}
         </div>
 
         <button type="submit" disabled={saving} className="button-primary mt-6 w-full">
@@ -54,28 +42,26 @@ export default function AdminPrizesSection({ saving, draft, onChange, onSave }) 
         <div className="admin-hub-card-head">
           <div>
             <p className="admin-hub-eyebrow">Resumen</p>
-            <h3 className="admin-hub-card-title">Pozo configurado</h3>
+            <h3 className="admin-hub-card-title">Podio configurado</h3>
           </div>
           <span className="admin-hub-badge">Listo</span>
         </div>
 
         <div className="admin-prize-preview-grid">
-          <div className="admin-prize-preview-card">
-            <span>Fase de grupos</span>
-            <strong>{formatMoney(draft.group_stage_prize)}</strong>
-          </div>
-          <div className="admin-prize-preview-card">
-            <span>Eliminatorias</span>
-            <strong>{formatMoney(draft.knockout_prize)}</strong>
-          </div>
+          {PRIZE_PLACE_FIELDS.map((prize) => (
+            <div key={prize.key} className={`admin-prize-preview-card ${prize.tone}`}>
+              <span>{prize.label}</span>
+              <strong>{formatPrizeAmount(draft[prize.key])}</strong>
+            </div>
+          ))}
           <div className="admin-prize-preview-card is-total">
             <span>Total visible</span>
-            <strong>{formatMoney(totalPrize)}</strong>
+            <strong>{formatPrizeAmount(totalPrize)}</strong>
           </div>
         </div>
 
         <p className="admin-hub-footnote">
-          Estos montos se reflejan en la pantalla publica de Scoreboard una vez guardados.
+          Estos montos se reflejan en login, dashboard de inicio y scoreboard una vez guardados.
         </p>
       </article>
     </div>

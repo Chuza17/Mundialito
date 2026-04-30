@@ -10,6 +10,8 @@ import {
   X,
 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
+import { useAppConfig } from '../hooks/useAppConfig'
+import PrizeCarousel from '../components/common/PrizeCarousel'
 import { APP_NAME } from '../utils/constants'
 import { publicAsset } from '../utils/publicAsset'
 import audioPlayImage from '../assets/branding/audio-play.png'
@@ -44,6 +46,7 @@ export default function PublicLoginPage() {
   const videoRef = useRef(null)
   const identifierInputRef = useRef(null)
   const { user, login, loading, authError } = useAuth()
+  const { config } = useAppConfig()
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(true)
@@ -218,6 +221,18 @@ export default function PublicLoginPage() {
             </button>
           </div>
         </header>
+
+        <div className="public-login-prize-anchor">
+          <PrizeCarousel
+            config={config}
+            eyebrow="Premios"
+            title=""
+            className="is-login"
+            variant="podium"
+            autoRotate={false}
+            showNotes={false}
+          />
+        </div>
 
         {isInfoOpen ? (
           <div className="public-login-modal-layer public-login-info-layer" onClick={(event) => event.currentTarget === event.target && setIsInfoOpen(false)}>
