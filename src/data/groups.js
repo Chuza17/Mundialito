@@ -14,4 +14,9 @@ export const groups = [
     name: 'Grupo C',
     teams: ['España', 'Francia', 'Canadá', 'Marruecos'],
   },
+  {
+    id: 'D',
+    name: 'Grupo D',
+    teams: ['Inglaterra', 'Uruguay', 'Senegal', 'Australia'],
+  },
 ]

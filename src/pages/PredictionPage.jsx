@@ -1,54 +1,55 @@
-import { groups } from '../data/officialGroups'
+const groups = [
+  {
+    name: 'Grupo A',
+    teams: ['Costa Rica', 'Brasil', 'Japón', 'Alemania'],
+  },
+  {
+    name: 'Grupo B',
+    teams: ['Argentina', 'México', 'Estados Unidos', 'Corea del Sur'],
+  },
+  {
+    name: 'Grupo C',
+    teams: ['España', 'Francia', 'Canadá', 'Marruecos'],
+  },
+]
 
-function PredictionPage() {
+function PredictionsPage() {
   return (
-    <section className="predictions-layout">
-      <article className="panel panel-accent">
-        <div className="section-heading">
-          <div>
-            <span className="eyebrow">Predicciones</span>
-            <h3>Grupos oficiales del Mundial 2026</h3>
-          </div>
+    <div className="page">
+      <div className="page-header">
+        <div>
+          <span className="section-tag">Mis predicciones</span>
+          <h2>Organiza tus grupos</h2>
+          <p>Luego aquí vamos a agregar inputs, drag and drop y guardado real.</p>
         </div>
+      </div>
 
-        <p className="section-copy">
-          Basado en el sorteo final publicado por FIFA. Los cupos que siguen en repechaje
-          se muestran con todas las selecciones candidatas para no inventar clasificados.
-        </p>
-
-        <div className="legend-row">
-          <span className="legend-pill">🇲🇽 🇧🇷 🇫🇷 Selecciones confirmadas</span>
-          <span className="legend-pill">🏁 Cupos pendientes de repechaje</span>
-          <span className="legend-pill">12 grupos listos para pronosticar</span>
-        </div>
-      </article>
-
-      <div className="groups-grid">
+      <div className="prediction-grid">
         {groups.map((group) => (
-          <article key={group.id} className="group-card">
-            <div className="group-card-header">
-              <span className="group-tag">Grupo {group.id}</span>
-              <strong>{group.highlight}</strong>
+          <div className="prediction-card" key={group.name}>
+            <div className="section-header">
+              <h3>{group.name}</h3>
+              <span>4 equipos</span>
             </div>
 
-            <ul className="team-list">
-              {group.teams.map((team) => (
-                <li key={`${group.id}-${team.name}`} className="team-row">
-                  <div className="team-main">
-                    <span className="team-flags">{team.flag}</span>
-                    <div>
-                      <strong>{team.name}</strong>
-                      <span>{team.note}</span>
-                    </div>
+            <div className="team-list">
+              {group.teams.map((team, index) => (
+                <div className="team-row" key={team}>
+                  <div className="team-left">
+                    <span className="team-position">{index + 1}</span>
+                    <span>{team}</span>
                   </div>
-                </li>
+                  <input className="points-input" type="number" placeholder="Pts" />
+                </div>
               ))}
-            </ul>
-          </article>
+            </div>
+
+            <button className="primary-action">Editar predicción</button>
+          </div>
         ))}
       </div>
-    </section>
+    </div>
   )
 }
 
-export default PredictionPage
+export default PredictionsPage
