@@ -1,4 +1,7 @@
 import { FALLBACK_MATCHES, ROUNDS } from './constants'
+import { THIRD_PLACE_SCENARIOS } from './thirdPlaceScenarios'
+
+const OFFICIAL_THIRD_SLOT_ORDER = ['A', 'B', 'D', 'E', 'G', 'I', 'K', 'L']
 
 export function isBestThirdSource(sourceType, sourceGroup, sourcePosition) {
   return sourceType === 'best_third' || (sourceType === 'group_position' && !sourceGroup && Number(sourcePosition) === 3)
@@ -56,6 +59,7 @@ function buildBestThirdSlots(matches = FALLBACK_MATCHES) {
         match_code: match.match_code,
         side: 'home',
         allowedGroups: match.home_third_options ?? [],
+        winnerGroup: getBestThirdOpponentWinnerGroup(match, 'home'),
         order,
       })
     }
@@ -66,12 +70,56 @@ function buildBestThirdSlots(matches = FALLBACK_MATCHES) {
         match_code: match.match_code,
         side: 'away',
         allowedGroups: match.away_third_options ?? [],
+        winnerGroup: getBestThirdOpponentWinnerGroup(match, 'away'),
         order,
       })
     }
 
     return slots
   })
+}
+
+function getBestThirdOpponentWinnerGroup(match, side) {
+  const sourcePrefix = side === 'home' ? 'away' : 'home'
+  const sourceType = match[`${sourcePrefix}_source_type`]
+  const sourceGroup = match[`${sourcePrefix}_source_group`]
+  const sourcePosition = Number(match[`${sourcePrefix}_source_position`])
+
+  if (sourceType === 'group_position' && sourceGroup && sourcePosition === 1) {
+    return sourceGroup
+  }
+
+  return null
+}
+
+function buildOfficialThirdPlaceAssignment(slots, thirdByGroup, groups) {
+  const scenarioKey = [...groups].sort().join('')
+  const scenario = THIRD_PLACE_SCENARIOS[scenarioKey]
+  if (!scenario || scenario.length !== OFFICIAL_THIRD_SLOT_ORDER.length) return null
+
+  const slotByWinnerGroup = slots.reduce((accumulator, slot) => {
+    if (slot.winnerGroup) {
+      accumulator[slot.winnerGroup] = slot
+    }
+    return accumulator
+  }, {})
+
+  const assignment = {}
+
+  for (let index = 0; index < OFFICIAL_THIRD_SLOT_ORDER.length; index += 1) {
+    const winnerGroup = OFFICIAL_THIRD_SLOT_ORDER[index]
+    const thirdGroup = scenario[index]
+    const slot = slotByWinnerGroup[winnerGroup]
+    const third = thirdByGroup[thirdGroup]
+
+    if (!slot || !third || !slot.allowedGroups.includes(thirdGroup)) {
+      return null
+    }
+
+    assignment[slot.key] = third.team ?? null
+  }
+
+  return assignment
 }
 
 export function assignBestThirdTeams(matches = FALLBACK_MATCHES, rankedThirds = []) {
@@ -84,6 +132,15 @@ export function assignBestThirdTeams(matches = FALLBACK_MATCHES, rankedThirds = 
   }, {})
 
   const groups = rankedThirds.map((third) => third.group_letter)
+  const uniqueGroups = [...new Set(groups)]
+
+  if (uniqueGroups.length === OFFICIAL_THIRD_SLOT_ORDER.length) {
+    const officialAssignment = buildOfficialThirdPlaceAssignment(slots, thirdByGroup, uniqueGroups)
+    if (officialAssignment) {
+      return officialAssignment
+    }
+  }
+
   const orderedGroups = [...groups].sort((left, right) => {
     const leftEligible = slots.filter((slot) => slot.allowedGroups.includes(left)).length
     const rightEligible = slots.filter((slot) => slot.allowedGroups.includes(right)).length

@@ -8,6 +8,7 @@ export default function AdminUsersSection({
   onCreate,
   onReset,
   onDelete,
+  onApprove,
 }) {
   return (
     <div className="admin-hub-grid admin-hub-grid-users">
@@ -31,12 +32,12 @@ export default function AdminUsersSection({
         <div className="admin-hub-card-head">
           <div>
             <p className="admin-hub-eyebrow">Base activa</p>
-            <h3 className="admin-hub-card-title">Cuentas creadas</h3>
+            <h3 className="admin-hub-card-title">Cuentas y solicitudes</h3>
           </div>
           <span className="admin-hub-badge">{users.length} perfiles</span>
         </div>
         <p className="admin-hub-card-copy">
-          Aqui se muestran las cuentas registradas. Puedes resetear contrasenas o eliminar acceso si un usuario no paga o no cumple con los requisitos.
+          Aqui se muestran las cuentas registradas y las solicitudes pendientes. Puedes aprobar, resetear contrasenas o desactivar acceso.
         </p>
 
         {usersError ? <p className="admin-hub-error mt-5">{usersError}</p> : null}
@@ -44,7 +45,7 @@ export default function AdminUsersSection({
         {!loading && !users.length ? <p className="admin-hub-empty mt-5">Todavia no hay usuarios cargados.</p> : null}
         {!loading && users.length ? (
           <div className="mt-5">
-            <UsersList users={users} onReset={onReset} onDelete={onDelete} />
+            <UsersList users={users} onReset={onReset} onDelete={onDelete} onApprove={onApprove} />
           </div>
         ) : null}
       </article>

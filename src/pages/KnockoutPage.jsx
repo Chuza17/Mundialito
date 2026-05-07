@@ -104,29 +104,8 @@ function buildPreviewThirdRowsForGroups(groupLetters = [], actualGroupPrediction
 }
 
 function buildRandomBestThirdAssignment(matchDefinitions = [], selectedRows = [], shuffleSeed = 0) {
-  const slots = matchDefinitions.flatMap((match) => {
-    const items = []
-
-    if (isBestThirdSource(match.home_source_type, match.home_source_group, match.home_source_position)) {
-      items.push(`${match.match_code}:home`)
-    }
-
-    if (isBestThirdSource(match.away_source_type, match.away_source_group, match.away_source_position)) {
-      items.push(`${match.match_code}:away`)
-    }
-
-    return items
-  })
-
   const shuffledRows = shuffleRows(selectedRows, shuffleSeed)
-
-  return slots.reduce((accumulator, slotKey, index) => {
-    const row = shuffledRows[index]
-    if (row?.team) {
-      accumulator[slotKey] = row.team
-    }
-    return accumulator
-  }, {})
+  return assignBestThirdTeams(matchDefinitions, shuffledRows)
 }
 
 function buildPreviewBestThirds(matchDefinitions = [], groupPredictions = [], teams = []) {

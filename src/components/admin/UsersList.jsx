@@ -1,10 +1,10 @@
 import UserCard from './UserCard'
 
-export default function UsersList({ users, onReset, onDelete }) {
+export default function UsersList({ users, onReset, onDelete, onApprove }) {
   return (
     <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-2">
       {users.map((user) => (
-        <UserCard key={user.id} user={user} onReset={onReset} onDelete={onDelete} />
+        <UserCard key={user.id} user={user} onReset={onReset} onDelete={onDelete} onApprove={onApprove} />
       ))}
     </div>
   )

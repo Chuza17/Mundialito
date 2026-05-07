@@ -45,7 +45,7 @@ export default function PublicLoginPage() {
   const navigate = useNavigate()
   const videoRef = useRef(null)
   const identifierInputRef = useRef(null)
-  const { user, login, loading, authError } = useAuth()
+  const { user, login, requestAccess, loading, authError } = useAuth()
   const { config } = useAppConfig()
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
@@ -57,6 +57,14 @@ export default function PublicLoginPage() {
   const [isLogoSpinning, setIsLogoSpinning] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [authMode, setAuthMode] = useState('login')
+  const [requestForm, setRequestForm] = useState({
+    email: '',
+    username: '',
+    display_name: '',
+    password: '',
+  })
+  const [requestSuccess, setRequestSuccess] = useState('')
 
   const identifierState = useMemo(() => {
     if (!identifier) return 'idle'
@@ -120,6 +128,8 @@ export default function PublicLoginPage() {
 
   function openLogin() {
     enableVideoAudio()
+    setAuthMode('login')
+    setRequestSuccess('')
     setIsLoginOpen(true)
   }
 
@@ -131,6 +141,10 @@ export default function PublicLoginPage() {
   function closeLogin() {
     if (submitting) return
     setIsLoginOpen(false)
+  }
+
+  function updateRequestField(field, value) {
+    setRequestForm((current) => ({ ...current, [field]: value }))
   }
 
   async function handleSubmit(event) {
@@ -148,6 +162,23 @@ export default function PublicLoginPage() {
       navigate('/dashboard', { replace: true })
     } catch (loginError) {
       setError(loginError.message || 'No fue posible iniciar sesion.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleAccessRequest(event) {
+    event.preventDefault()
+    setError('')
+    setRequestSuccess('')
+
+    try {
+      setSubmitting(true)
+      await requestAccess(requestForm)
+      setRequestSuccess('Solicitud recibida. El admin debe aprobar tu cuenta antes de que puedas entrar.')
+      setRequestForm({ email: '', username: '', display_name: '', password: '' })
+    } catch (requestError) {
+      setError(requestError.message || 'No fue posible registrar tu solicitud.')
     } finally {
       setSubmitting(false)
     }
@@ -272,103 +303,224 @@ export default function PublicLoginPage() {
               </button>
 
               <div className="login-auth-head">
-                <p className="public-login-card-kicker">Acceso oficial</p>
-                <h2 id="public-login-title" className="login-auth-title">Login</h2>
+                <p className="public-login-card-kicker">{authMode === 'login' ? 'Acceso oficial' : 'Solicitud de acceso'}</p>
+                <h2 id="public-login-title" className="login-auth-title">{authMode === 'login' ? 'Login' : 'Crear solicitud'}</h2>
                 <p className="login-auth-copy">
-                  Bienvenido de vuelta. Ingresa para entrar a tu cuenta.
+                  {authMode === 'login'
+                    ? 'Bienvenido de vuelta. Ingresa para entrar a tu cuenta.'
+                    : 'Registra tus datos y el admin activara tu cuenta cuando quede aprobada.'}
                 </p>
               </div>
 
-              <form id="login-panel" className="login-auth-form relative mt-7 space-y-5" onSubmit={handleSubmit}>
-                {submitting ? <div className="login-loading-overlay"><SoccerKickLoader /></div> : null}
+              {authMode === 'login' ? (
+                <form id="login-panel" className="login-auth-form relative mt-7 space-y-5" onSubmit={handleSubmit}>
+                  {submitting ? <div className="login-loading-overlay"><SoccerKickLoader /></div> : null}
 
-                <label className="block">
-                  <div className={`${getFieldClass(identifierState)} login-auth-input`}>
-                    <div className="login-field-icon">
-                      {identifier.includes('@') ? <Mail className="h-5 w-5" /> : <UserRound className="h-5 w-5" />}
+                  <label className="block">
+                    <div className={`${getFieldClass(identifierState)} login-auth-input`}>
+                      <div className="login-field-icon">
+                        {identifier.includes('@') ? <Mail className="h-5 w-5" /> : <UserRound className="h-5 w-5" />}
+                      </div>
+                      <input
+                        ref={identifierInputRef}
+                        aria-label="Email o usuario"
+                        className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-slate-300/55"
+                        type="text"
+                        placeholder="User Name"
+                        value={identifier}
+                        onChange={(event) => setIdentifier(event.target.value)}
+                        disabled={loading || submitting}
+                      />
                     </div>
-                    <input
-                      ref={identifierInputRef}
-                      aria-label="Email o usuario"
-                      className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-slate-300/55"
-                      type="text"
-                      placeholder="User Name"
-                      value={identifier}
-                      onChange={(event) => setIdentifier(event.target.value)}
-                      disabled={loading || submitting}
-                    />
-                  </div>
-                  <p className={identifierState === 'invalid' ? 'login-field-copy login-auth-hint text-rose-200' : 'login-field-copy login-auth-hint'}>
-                    {identifierState === 'valid'
-                      ? 'Identificador listo.'
-                      : identifierState === 'invalid'
-                        ? 'Usa un email valido o un usuario de al menos 3 caracteres.'
-                        : 'Puedes ingresar con email o nombre de usuario.'}
-                  </p>
-                </label>
+                    <p className={identifierState === 'invalid' ? 'login-field-copy login-auth-hint text-rose-200' : 'login-field-copy login-auth-hint'}>
+                      {identifierState === 'valid'
+                        ? 'Identificador listo.'
+                        : identifierState === 'invalid'
+                          ? 'Usa un email valido o un usuario de al menos 3 caracteres.'
+                          : 'Puedes ingresar con email o nombre de usuario.'}
+                    </p>
+                  </label>
 
-                <label className="block">
-                  <div className={`${getFieldClass(passwordState)} login-auth-input`}>
-                    <div className="login-field-icon">
-                      <LockKeyhole className="h-5 w-5" />
+                  <label className="block">
+                    <div className={`${getFieldClass(passwordState)} login-auth-input`}>
+                      <div className="login-field-icon">
+                        <LockKeyhole className="h-5 w-5" />
+                      </div>
+                      <input
+                        aria-label="Contrasena"
+                        className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-slate-300/55"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        disabled={loading || submitting}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((current) => !current)}
+                        className="login-auth-ghost-button"
+                        aria-label={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
                     </div>
+                    {(passwordState === 'valid' || passwordState === 'invalid') ? (
+                      <p className={passwordState === 'invalid' ? 'login-field-copy login-auth-hint text-rose-200' : 'login-field-copy login-auth-hint'}>
+                        {passwordState === 'valid' ? 'Contrasena valida.' : 'Debe tener al menos 6 caracteres.'}
+                      </p>
+                    ) : null}
+                  </label>
+
+                  <label className="login-remember-row">
                     <input
-                      aria-label="Contrasena"
-                      className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-slate-300/55"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Password"
-                      value={password}
-                      onChange={(event) => setPassword(event.target.value)}
-                      disabled={loading || submitting}
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(event) => setRememberMe(event.target.checked)}
+                      className="login-remember-checkbox"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((current) => !current)}
-                      className="login-auth-ghost-button"
-                      aria-label={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
-                    >
-                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                    </button>
-                  </div>
-                  {(passwordState === 'valid' || passwordState === 'invalid') ? (
-                    <p className={passwordState === 'invalid' ? 'login-field-copy login-auth-hint text-rose-200' : 'login-field-copy login-auth-hint'}>
-                      {passwordState === 'valid' ? 'Contrasena valida.' : 'Debe tener al menos 6 caracteres.'}
+                    <span>Remember me</span>
+                  </label>
+
+                  {error || authError ? (
+                    <p className="login-auth-error rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                      {error || authError}
                     </p>
                   ) : null}
-                </label>
 
-                <label className="login-remember-row">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(event) => setRememberMe(event.target.checked)}
-                    className="login-remember-checkbox"
-                  />
-                  <span>Remember me</span>
-                </label>
+                  <button type="submit" className="login-submit-button login-submit-button-auth group" disabled={loading || submitting}>
+                    <span>Login</span>
+                    <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" />
+                  </button>
 
-                {error || authError ? (
-                  <p className="login-auth-error rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-100">
-                    {error || authError}
-                  </p>
-                ) : null}
-
-                <button type="submit" className="login-submit-button login-submit-button-auth group" disabled={loading || submitting}>
-                  <span>Login</span>
-                  <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" />
-                </button>
-
-                <div className="login-auth-footer-card">
-                  <p className="login-auth-footer-copy">
-                    No tienes una cuenta? <span className="login-auth-footer-strong">Solicita acceso</span>
-                  </p>
-                  <div className="login-post-actions">
-                    <button type="button" className="login-text-link login-auth-forgot-link">
-                      Olvide mi contrasena
-                    </button>
+                  <div className="login-auth-footer-card">
+                    <p className="login-auth-footer-copy">
+                      No tienes una cuenta?{' '}
+                      <button
+                        type="button"
+                        className="login-auth-footer-strong"
+                        onClick={() => {
+                          setAuthMode('request')
+                          setError('')
+                          setRequestSuccess('')
+                        }}
+                      >
+                        Solicita acceso
+                      </button>
+                    </p>
+                    <div className="login-post-actions">
+                      <button type="button" className="login-text-link login-auth-forgot-link">
+                        Olvide mi contrasena
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </form>
+                </form>
+              ) : (
+                <form id="request-access-panel" className="login-auth-form relative mt-7 space-y-5" onSubmit={handleAccessRequest}>
+                  {submitting ? <div className="login-loading-overlay"><SoccerKickLoader /></div> : null}
+
+                  <label className="block">
+                    <div className="login-field login-auth-input">
+                      <div className="login-field-icon"><UserRound className="h-5 w-5" /></div>
+                      <input
+                        aria-label="Nombre"
+                        className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-slate-300/55"
+                        type="text"
+                        placeholder="Nombre visible"
+                        value={requestForm.display_name}
+                        onChange={(event) => updateRequestField('display_name', event.target.value)}
+                        disabled={loading || submitting}
+                      />
+                    </div>
+                  </label>
+
+                  <label className="block">
+                    <div className="login-field login-auth-input">
+                      <div className="login-field-icon"><UserRound className="h-5 w-5" /></div>
+                      <input
+                        aria-label="Usuario"
+                        className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-slate-300/55"
+                        type="text"
+                        placeholder="Usuario"
+                        value={requestForm.username}
+                        onChange={(event) => updateRequestField('username', event.target.value)}
+                        disabled={loading || submitting}
+                      />
+                    </div>
+                  </label>
+
+                  <label className="block">
+                    <div className="login-field login-auth-input">
+                      <div className="login-field-icon"><Mail className="h-5 w-5" /></div>
+                      <input
+                        aria-label="Email"
+                        className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-slate-300/55"
+                        type="email"
+                        placeholder="Email"
+                        value={requestForm.email}
+                        onChange={(event) => updateRequestField('email', event.target.value)}
+                        disabled={loading || submitting}
+                      />
+                    </div>
+                  </label>
+
+                  <label className="block">
+                    <div className="login-field login-auth-input">
+                      <div className="login-field-icon"><LockKeyhole className="h-5 w-5" /></div>
+                      <input
+                        aria-label="Contrasena"
+                        className="min-w-0 flex-1 bg-transparent text-base text-white outline-none placeholder:text-slate-300/55"
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Contrasena"
+                        value={requestForm.password}
+                        onChange={(event) => updateRequestField('password', event.target.value)}
+                        disabled={loading || submitting}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((current) => !current)}
+                        className="login-auth-ghost-button"
+                        aria-label={showPassword ? 'Ocultar contrasena' : 'Mostrar contrasena'}
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
+                    <p className="login-field-copy login-auth-hint">Tu cuenta quedara inactiva hasta que el admin la apruebe.</p>
+                  </label>
+
+                  {error ? (
+                    <p className="login-auth-error rounded-2xl border border-red-500/35 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+                      {error}
+                    </p>
+                  ) : null}
+
+                  {requestSuccess ? (
+                    <p className="rounded-2xl border border-emerald-400/35 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+                      {requestSuccess}
+                    </p>
+                  ) : null}
+
+                  <button type="submit" className="login-submit-button login-submit-button-auth group" disabled={loading || submitting}>
+                    <span>Enviar solicitud</span>
+                    <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" />
+                  </button>
+
+                  <div className="login-auth-footer-card">
+                    <p className="login-auth-footer-copy">
+                      Ya tienes cuenta?{' '}
+                      <button
+                        type="button"
+                        className="login-auth-footer-strong"
+                        onClick={() => {
+                          setAuthMode('login')
+                          setError('')
+                        }}
+                      >
+                        Entrar
+                      </button>
+                    </p>
+                  </div>
+                </form>
+              )}
             </div>
           </section>
           </div>

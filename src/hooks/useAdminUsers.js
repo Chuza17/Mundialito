@@ -108,6 +108,13 @@ export function useAdminUsers() {
     await fetchUsers()
   }
 
+  async function approveUser(profileId) {
+    setError('')
+    const { error } = await supabase.from('profiles').update({ is_active: true }).eq('id', profileId)
+    if (error) throw error
+    await fetchUsers()
+  }
+
   async function resetPassword(payload) {
     setError('')
     const { data, error } = await supabase.functions.invoke('reset-user-password', {
@@ -122,5 +129,5 @@ export function useAdminUsers() {
     return data
   }
 
-  return { users, loading, error, fetchUsers, createUser, deleteUser, resetPassword }
+  return { users, loading, error, fetchUsers, createUser, deleteUser, approveUser, resetPassword }
 }

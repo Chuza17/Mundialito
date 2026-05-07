@@ -13,7 +13,7 @@
     "smoke:api": "node scripts/smoke-supabase.mjs",
     "supabase:secrets": "supabase secrets list --project-ref pvczmhgwcgfzkvniedfs",
     "supabase:functions": "supabase functions list --project-ref pvczmhgwcgfzkvniedfs",
-    "supabase:deploy:functions": "supabase functions deploy create-user --project-ref pvczmhgwcgfzkvniedfs --no-verify-jwt --use-api && supabase functions deploy reset-user-password --project-ref pvczmhgwcgfzkvniedfs --no-verify-jwt --use-api && supabase functions deploy calculate-scores --project-ref pvczmhgwcgfzkvniedfs --no-verify-jwt --use-api && supabase functions deploy sync-results --project-ref pvczmhgwcgfzkvniedfs --no-verify-jwt --use-api"
+    "supabase:deploy:functions": "supabase functions deploy create-user --project-ref pvczmhgwcgfzkvniedfs --no-verify-jwt --use-api && supabase functions deploy request-user --project-ref pvczmhgwcgfzkvniedfs --no-verify-jwt --use-api && supabase functions deploy reset-user-password --project-ref pvczmhgwcgfzkvniedfs --no-verify-jwt --use-api && supabase functions deploy calculate-scores --project-ref pvczmhgwcgfzkvniedfs --no-verify-jwt --use-api && supabase functions deploy sync-results --project-ref pvczmhgwcgfzkvniedfs --no-verify-jwt --use-api"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

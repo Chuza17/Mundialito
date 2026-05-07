@@ -70,7 +70,7 @@ function buildManualDrafts(teamsByGroup = {}, savedDrafts = {}) {
 }
 
 export default function AdminUsersPage() {
-  const { users, loading, error: usersError, createUser, deleteUser, resetPassword } = useAdminUsers()
+  const { users, loading, error: usersError, createUser, deleteUser, approveUser, resetPassword } = useAdminUsers()
   const { config, saving, updateConfig } = useAppConfig()
   const { teams, loading: teamsLoading, error: teamsError } = useTeams()
   const [activeSection, setActiveSection] = useState('users')
@@ -89,6 +89,7 @@ export default function AdminUsersPage() {
   const defaultManualDrafts = buildManualDrafts(teamsByGroup)
   const visibleUsers = users.filter((user) => user.role !== 'admin')
   const activeUsers = visibleUsers.filter((user) => user.is_active !== false)
+  const pendingUsers = visibleUsers.filter((user) => user.is_active === false)
   const prizePool = getPrizePool(configDraft)
   const manualReadyCount = Object.keys(manualDrafts).filter((letter) => validateGroupTable(manualDrafts[letter]).valid).length
 
@@ -125,6 +126,15 @@ export default function AdminUsersPage() {
       setToast({ type: 'success', message: 'Usuario desactivado.' })
     } catch (error) {
       setToast({ type: 'error', message: error.message || 'No se pudo desactivar el usuario.' })
+    }
+  }
+
+  async function handleApprove(user) {
+    try {
+      await approveUser(user.id)
+      setToast({ type: 'success', message: 'Usuario aprobado. Ya puede iniciar sesion.' })
+    } catch (error) {
+      setToast({ type: 'error', message: error.message || 'No se pudo aprobar el usuario.' })
     }
   }
 
@@ -200,6 +210,7 @@ export default function AdminUsersPage() {
           onCreate={handleCreateUser}
           onReset={handleReset}
           onDelete={handleDelete}
+          onApprove={handleApprove}
         />
       )
     }
@@ -255,7 +266,7 @@ export default function AdminUsersPage() {
             <article className="admin-hub-metric">
               <span>Usuarios activos</span>
               <strong>{activeUsers.length}</strong>
-              <small>{visibleUsers.length} perfiles visibles</small>
+              <small>{pendingUsers.length} pendientes de aprobacion</small>
             </article>
             <article className="admin-hub-metric">
               <span>Premios</span>
