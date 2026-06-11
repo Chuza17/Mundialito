@@ -34,7 +34,7 @@ Deno.serve(async (req: Request) => {
       { data: bestThirdPredictions, error: bestThirdPredictionsError },
       { data: knockoutPredictions, error: knockoutPredictionsError },
       { data: knockoutMatches, error: knockoutMatchesError },
-      { data: matchScoreBonuses, error: matchScoreBonusesError },
+      { data: matchScorePredictions, error: matchScorePredictionsError },
       { data: worldCupMatches, error: worldCupMatchesError },
     ] = await Promise.all([
       adminClient.from('profiles').select('id, username, display_name, role, is_active').eq('role', 'user').eq('is_active', true),
@@ -44,8 +44,12 @@ Deno.serve(async (req: Request) => {
       adminClient.from('best_thirds_predictions').select('*'),
       adminClient.from('knockout_predictions').select('*'),
       adminClient.from('knockout_matches').select('match_code, round'),
-      adminClient.from('user_match_score_bonus').select('user_id, match_score_bonus_points'),
-      adminClient.from('world_cup_matches').select('group_letter, round, status'),
+      adminClient
+        .from('match_score_predictions')
+        .select('id, user_id, match_id, predicted_home_score, predicted_away_score, points_awarded'),
+      adminClient
+        .from('world_cup_matches')
+        .select('id, group_letter, round, status, home_score, away_score'),
     ])
 
     if (profilesError || !profiles) return errorResponse('Unable to load profiles.', 500, profilesError?.message)
@@ -55,8 +59,57 @@ Deno.serve(async (req: Request) => {
     if (bestThirdPredictionsError || !bestThirdPredictions) return errorResponse('Unable to load best_thirds_predictions.', 500, bestThirdPredictionsError?.message)
     if (knockoutPredictionsError || !knockoutPredictions) return errorResponse('Unable to load knockout_predictions.', 500, knockoutPredictionsError?.message)
     if (knockoutMatchesError || !knockoutMatches) return errorResponse('Unable to load knockout_matches.', 500, knockoutMatchesError?.message)
-    if (matchScoreBonusesError || !matchScoreBonuses) return errorResponse('Unable to load user_match_score_bonus.', 500, matchScoreBonusesError?.message)
+    if (matchScorePredictionsError || !matchScorePredictions) return errorResponse('Unable to load match_score_predictions.', 500, matchScorePredictionsError?.message)
     if (worldCupMatchesError || !worldCupMatches) return errorResponse('Unable to load world_cup_matches.', 500, worldCupMatchesError?.message)
+
+    const finishedMatchById = new Map(
+      worldCupMatches
+        .filter(
+          (row: any) =>
+            FINISHED_MATCH_STATUSES.has(row.status) &&
+            row.home_score !== null &&
+            row.away_score !== null
+        )
+        .map((row: any) => [row.id, row])
+    )
+    const scoredMatchPredictions = matchScorePredictions.map((prediction: any) => {
+      const realMatch: any = finishedMatchById.get(prediction.match_id)
+      const pointsAwarded =
+        realMatch &&
+        Number(prediction.predicted_home_score) === Number(realMatch.home_score) &&
+        Number(prediction.predicted_away_score) === Number(realMatch.away_score)
+          ? 2
+          : 0
+
+      return {
+        ...prediction,
+        points_awarded: pointsAwarded,
+      }
+    })
+    const savedPointsByPredictionId = new Map(
+      matchScorePredictions.map((prediction: any) => [
+        prediction.id,
+        Number(prediction.points_awarded ?? 0),
+      ])
+    )
+    const changedMatchPredictions = scoredMatchPredictions.filter(
+      (prediction: any) =>
+        Number(prediction.points_awarded) !== savedPointsByPredictionId.get(prediction.id)
+    )
+
+    if (changedMatchPredictions.length) {
+      const { error: scorePredictionsError } = await adminClient
+        .from('match_score_predictions')
+        .upsert(changedMatchPredictions, { onConflict: 'id' })
+
+      if (scorePredictionsError) {
+        return errorResponse(
+          'Unable to update match_score_predictions points.',
+          500,
+          scorePredictionsError.message
+        )
+      }
+    }
 
     const realGroupByTeamId = new Map(realGroupRows.map((row: any) => [row.team_id, row]))
     const realQualifiedThirdGroups = new Set(
@@ -92,8 +145,15 @@ Deno.serve(async (req: Request) => {
     const groupPredictionsByUser = groupBy(groupPredictions, (row: any) => row.user_id)
     const bestThirdPredictionsByUser = groupBy(bestThirdPredictions, (row: any) => row.user_id)
     const knockoutPredictionsByUser = groupBy(knockoutPredictions, (row: any) => row.user_id)
-    const matchScoreBonusByUser = new Map(
-      matchScoreBonuses.map((row: any) => [row.user_id, Number(row.match_score_bonus_points ?? 0)])
+    const matchScoreBonusByUser = scoredMatchPredictions.reduce<Map<string, number>>(
+      (accumulator, row: any) => {
+        accumulator.set(
+          row.user_id,
+          (accumulator.get(row.user_id) ?? 0) + Number(row.points_awarded ?? 0)
+        )
+        return accumulator
+      },
+      new Map()
     )
 
     const scoreRows = profiles.map((profile: any) => {
@@ -222,6 +282,8 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({
       message: 'Scores calculated successfully.',
       users_updated: scoreRows.length,
+      match_predictions_scored: scoredMatchPredictions.length,
+      match_prediction_points_updated: changedMatchPredictions.length,
       champion_team_id: championTeamId,
     })
   } catch (error) {

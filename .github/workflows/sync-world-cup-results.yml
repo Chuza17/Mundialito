@@ -1,0 +1,47 @@
+name: Sync World Cup results
+
+on:
+  schedule:
+    - cron: '7 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-world-cup-results
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Synchronize results and recalculate scores
+        env:
+          CRON_SECRET: ${{ secrets.SUPABASE_CRON_SECRET }}
+        run: |
+          set -euo pipefail
+
+          response_file="$(mktemp)"
+          status="$(
+            curl \
+              --silent \
+              --show-error \
+              --retry 3 \
+              --retry-all-errors \
+              --output "$response_file" \
+              --write-out "%{http_code}" \
+              --request POST \
+              "https://pvczmhgwcgfzkvniedfs.supabase.co/functions/v1/sync-results" \
+              --header "Content-Type: application/json" \
+              --header "x-cron-secret: ${CRON_SECRET}" \
+              --data '{"source":"github-actions-nightly"}'
+          )"
+
+          cat "$response_file"
+
+          if [[ "$status" -lt 200 || "$status" -ge 300 ]]; then
+            echo "sync-results returned HTTP $status" >&2
+            exit 1
+          fi
