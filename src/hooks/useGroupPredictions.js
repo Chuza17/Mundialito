@@ -51,24 +51,28 @@ export function useGroupPredictions(userId) {
 
   async function saveGroupPredictions(groupLetter, rows) {
     setSaving(true)
-    setError('')
-    const payload = rows.map((row, index) => ({
-      user_id: userId,
-      team_id: row.team_id,
-      group_letter: groupLetter,
-      predicted_position: index + 1,
-      // Kept for compatibility with the current database schema.
-      predicted_points: Math.max(0, 3 - index),
-    }))
-    const { error } = await supabase.from('group_predictions').upsert(payload, {
-      onConflict: 'user_id,team_id',
-    })
-    setSaving(false)
-    if (error) {
-      setError('No se pudieron guardar las predicciones de grupos.')
-      throw error
+
+    try {
+      const payload = rows.map((row, index) => ({
+        team_id: row.team_id,
+        predicted_position: index + 1,
+        // Kept for compatibility with the current database schema.
+        predicted_points: Math.max(0, 3 - index),
+      }))
+      const { error } = await supabase.rpc('save_group_predictions', {
+        p_group_letter: groupLetter,
+        p_rows: payload,
+      })
+
+      if (error) {
+        console.error('Unable to save group predictions.', error)
+        throw new Error('No se pudo guardar el grupo. Actualiza la pagina e intenta nuevamente.')
+      }
+
+      await fetchPredictions()
+    } finally {
+      setSaving(false)
     }
-    await fetchPredictions()
   }
 
   function getGroupPredictions(groupLetter) {
