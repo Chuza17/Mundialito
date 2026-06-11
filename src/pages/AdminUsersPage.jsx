@@ -40,7 +40,7 @@ function serializeManualDrafts(drafts = {}) {
       (rows ?? []).map((row) => ({
         ...row,
         predicted_position: Number(row.predicted_position ?? 4),
-        predicted_points: Number(row.predicted_points ?? 0),
+        predicted_points: Math.max(0, 4 - Number(row.predicted_position ?? 4)),
       })),
     ])
   )
@@ -60,7 +60,7 @@ function buildManualDrafts(teamsByGroup = {}, savedDrafts = {}) {
           name: team.name,
           group_letter: letter,
           predicted_position: Number(savedRow?.predicted_position ?? index + 1),
-          predicted_points: Number(savedRow?.predicted_points ?? Math.max(0, 3 - index)),
+          predicted_points: Math.max(0, 3 - index),
         }
       })
       .sort((left, right) => left.predicted_position - right.predicted_position)

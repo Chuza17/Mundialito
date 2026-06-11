@@ -17,14 +17,45 @@ export function useAppConfig() {
   async function updateConfig(patch) {
     setSaving(true)
     try {
-      const patchFields = Object.keys(patch)
-      const isPrizePatch = patchFields.length > 0 && patchFields.every((field) => PRIZE_CONFIG_FIELDS.has(field))
-      const query = supabase.from('app_config').update(patch)
-      const { error } = isPrizePatch
-        ? await query.not('id', 'is', null)
-        : await query.eq('id', config.id ?? 1)
+      if (config.storage_mode === 'key_value') {
+        const updates = []
+        const prizePatch = Object.fromEntries(
+          Object.entries(patch).filter(([field]) => PRIZE_CONFIG_FIELDS.has(field))
+        )
 
-      if (error) throw error
+        if (Object.keys(prizePatch).length) {
+          updates.push(supabase.from('app_config').update(prizePatch).not('id', 'is', null))
+        }
+
+        if (Object.hasOwn(patch, 'deadline')) {
+          updates.push(
+            supabase
+              .from('app_config')
+              .update({ value: patch.deadline })
+              .eq('key', 'predictions_deadline')
+          )
+        }
+
+        if (Object.hasOwn(patch, 'predictions_locked')) {
+          updates.push(
+            supabase
+              .from('app_config')
+              .update({ value: Boolean(patch.predictions_locked) })
+              .eq('key', 'predictions_locked')
+          )
+        }
+
+        const results = await Promise.all(updates)
+        const failedUpdate = results.find((result) => result.error)
+        if (failedUpdate?.error) throw failedUpdate.error
+      } else {
+        const { error } = await supabase
+          .from('app_config')
+          .update(patch)
+          .eq('id', config.id ?? 1)
+        if (error) throw error
+      }
+
       await refreshConfig()
     } finally {
       setSaving(false)

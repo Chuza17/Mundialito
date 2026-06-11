@@ -40,7 +40,7 @@ function ThirdCandidateCard({ disabled, isSelected, onToggle, row }) {
       </div>
 
       <div className="thirds-candidate-card-footer">
-        <span>{row.predicted_points} pts</span>
+        <span>Tercer lugar del grupo</span>
         <span>{isSelected ? 'Toca para quitar' : 'Toca para incluir'}</span>
       </div>
     </button>
@@ -67,7 +67,7 @@ function MobileThirdCandidateRow({ disabled, isSelected, onToggle, row }) {
       </div>
 
       <div className="thirds-mobile-candidate-side">
-        <strong>{row.predicted_points} pts</strong>
+        <strong>3.er lugar</strong>
         <span>{isSelected ? 'Quitar' : 'Elegir'}</span>
       </div>
     </button>
@@ -112,7 +112,7 @@ function SelectedThirdSlot({ disabled, index, onRemove, row }) {
 
       <div className="thirds-slot-footer">
         <span>Grupo {row.group_letter}</span>
-        <span>{row.predicted_points} pts</span>
+        <span>Tercer lugar</span>
       </div>
     </article>
   )
@@ -197,13 +197,7 @@ export default function BestThirdsPage() {
         ...row,
         team: teamMap.get(row.team_id) ?? null,
       }))
-      .sort((left, right) => {
-        if (right.predicted_points !== left.predicted_points) {
-          return right.predicted_points - left.predicted_points
-        }
-
-        return left.group_letter.localeCompare(right.group_letter)
-      })
+      .sort((left, right) => left.group_letter.localeCompare(right.group_letter))
   }, [groups.predictions, teams])
 
   const rowByGroup = useMemo(
@@ -454,10 +448,10 @@ export default function BestThirdsPage() {
             <div className="groups-summary-head">
               <div className="groups-section-copy">
                 <p className="groups-section-kicker">Resumen de terceros</p>
-                <h2 className="groups-section-title">Grupo, pais y puntos</h2>
+                <h2 className="groups-section-title">Grupo, pais y clasificacion</h2>
                 <p className="groups-section-description">
-                  Usa esta tabla como verificacion final. Aqui puedes revisar rapidamente grupo, seleccion, puntaje y si
-                  ya la dejaste clasificada.
+                  Usa esta tabla como verificacion final. Aqui puedes revisar rapidamente cada tercer lugar y si ya lo
+                  dejaste clasificado.
                 </p>
               </div>
             </div>
@@ -466,7 +460,6 @@ export default function BestThirdsPage() {
               <div className="thirds-table-head-row">
                 <span>Grupo</span>
                 <span>Pais</span>
-                <span>Puntos</span>
                 <span>Estado</span>
               </div>
 
@@ -488,8 +481,6 @@ export default function BestThirdsPage() {
                           <span>{getTeamTokenLabel(row.team)}</span>
                         </div>
                       </div>
-
-                      <div className="thirds-table-points">{row.predicted_points} pts</div>
 
                       <button
                         type="button"

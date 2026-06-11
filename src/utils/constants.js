@@ -108,7 +108,7 @@ export const MATCH_COUNTS = {
   final: 1,
 }
 
-export const DEFAULT_DEADLINE = '2026-06-11T00:00:00Z'
+export const DEFAULT_DEADLINE = '2026-06-11T19:00:00Z'
 
 
 export const FALLBACK_TEAMS = [

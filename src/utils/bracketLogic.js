@@ -39,13 +39,7 @@ export function getRankedThirds(groupPredictions = [], teams = []) {
       ...row,
       team: teams.find((team) => team.id === row.team_id),
     }))
-    .sort((left, right) => {
-      if (right.predicted_points !== left.predicted_points) {
-        return right.predicted_points - left.predicted_points
-      }
-
-      return left.group_letter.localeCompare(right.group_letter)
-    })
+    .sort((left, right) => left.group_letter.localeCompare(right.group_letter))
   return thirds
 }
 

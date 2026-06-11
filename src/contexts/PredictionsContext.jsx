@@ -4,17 +4,57 @@ import { DEFAULT_DEADLINE, FALLBACK_TEAMS } from '../utils/constants'
 
 export const PredictionsContext = createContext(null)
 
+const DEFAULT_CONFIG = {
+  deadline: DEFAULT_DEADLINE,
+  predictions_locked: false,
+  group_stage_prize: 0,
+  knockout_prize: 0,
+  first_place_prize: 0,
+  second_place_prize: 0,
+  third_place_prize: 0,
+}
+
+function parseConfigBoolean(value) {
+  if (typeof value === 'boolean') return value
+  if (typeof value === 'string') return value.toLowerCase() === 'true'
+  return Boolean(value)
+}
+
+function normalizeConfigRows(rows = []) {
+  if (!rows.length) return DEFAULT_CONFIG
+
+  const firstRow = rows[0]
+  const isKeyValueConfig = rows.some((row) => row.key)
+
+  if (!isKeyValueConfig) {
+    return {
+      ...DEFAULT_CONFIG,
+      ...firstRow,
+      storage_mode: 'columns',
+    }
+  }
+
+  const rowByKey = new Map(rows.map((row) => [row.key, row]))
+  const deadlineRow = rowByKey.get('predictions_deadline')
+  const lockedRow = rowByKey.get('predictions_locked')
+
+  return {
+    ...DEFAULT_CONFIG,
+    id: deadlineRow?.id ?? firstRow.id,
+    deadline: deadlineRow?.value || DEFAULT_DEADLINE,
+    predictions_locked: parseConfigBoolean(lockedRow?.value),
+    group_stage_prize: Number(firstRow.group_stage_prize ?? 0),
+    knockout_prize: Number(firstRow.knockout_prize ?? 0),
+    first_place_prize: Number(firstRow.first_place_prize ?? 0),
+    second_place_prize: Number(firstRow.second_place_prize ?? 0),
+    third_place_prize: Number(firstRow.third_place_prize ?? 0),
+    storage_mode: 'key_value',
+  }
+}
+
 export function PredictionsProvider({ children }) {
   const [teams, setTeams] = useState(FALLBACK_TEAMS)
-  const [config, setConfig] = useState({
-    deadline: DEFAULT_DEADLINE,
-    predictions_locked: false,
-    group_stage_prize: 0,
-    knockout_prize: 0,
-    first_place_prize: 0,
-    second_place_prize: 0,
-    third_place_prize: 0,
-  })
+  const [config, setConfig] = useState(DEFAULT_CONFIG)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -28,37 +68,18 @@ export function PredictionsProvider({ children }) {
           { data: configData, error: configError },
         ] = await Promise.all([
           supabase.from('teams').select('*').order('group_letter').order('name'),
-          supabase.from('app_config').select('*').limit(1).maybeSingle(),
+          supabase.from('app_config').select('*').order('id'),
         ])
 
         if (teamsError) throw teamsError
         if (configError) throw configError
 
         setTeams(teamsData?.length ? teamsData : FALLBACK_TEAMS)
-        if (configData) {
-          setConfig({
-            deadline: DEFAULT_DEADLINE,
-            predictions_locked: false,
-            group_stage_prize: 0,
-            knockout_prize: 0,
-            first_place_prize: 0,
-            second_place_prize: 0,
-            third_place_prize: 0,
-            ...configData,
-          })
-        }
+        setConfig(normalizeConfigRows(configData))
       } catch (error) {
         console.error('Unable to bootstrap app data from Supabase.', error)
         setTeams(FALLBACK_TEAMS)
-        setConfig({
-          deadline: DEFAULT_DEADLINE,
-          predictions_locked: false,
-          group_stage_prize: 0,
-          knockout_prize: 0,
-          first_place_prize: 0,
-          second_place_prize: 0,
-          third_place_prize: 0,
-        })
+        setConfig(DEFAULT_CONFIG)
         setError('No se pudieron cargar algunos datos base desde Supabase.')
       } finally {
         setLoading(false)
@@ -88,21 +109,9 @@ export function PredictionsProvider({ children }) {
         const { data, error: configError } = await supabase
           .from('app_config')
           .select('*')
-          .limit(1)
-          .maybeSingle()
+          .order('id')
         if (configError) throw configError
-        if (data) {
-          setConfig({
-            deadline: DEFAULT_DEADLINE,
-            predictions_locked: false,
-            group_stage_prize: 0,
-            knockout_prize: 0,
-            first_place_prize: 0,
-            second_place_prize: 0,
-            third_place_prize: 0,
-            ...data,
-          })
-        }
+        setConfig(normalizeConfigRows(data))
         setError('')
       },
     }),

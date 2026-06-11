@@ -57,7 +57,8 @@ export function useGroupPredictions(userId) {
       team_id: row.team_id,
       group_letter: groupLetter,
       predicted_position: index + 1,
-      predicted_points: Number(row.predicted_points ?? row.points ?? 0),
+      // Kept for compatibility with the current database schema.
+      predicted_points: Math.max(0, 3 - index),
     }))
     const { error } = await supabase.from('group_predictions').upsert(payload, {
       onConflict: 'user_id,team_id',

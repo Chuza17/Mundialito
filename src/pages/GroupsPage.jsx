@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical } from 'lucide-react'
+import { GripVertical, Info, Star, X } from 'lucide-react'
 import CountdownTimer from '../components/common/CountdownTimer'
 import SubpageBackRow from '../components/common/SubpageBackRow'
 import TeamOrb, { getTeamTokenLabel } from '../components/common/TeamOrb'
@@ -18,11 +18,67 @@ function getPreviewCodes(rows = []) {
   return rows.slice(0, 4).map((row) => getTeamTokenLabel(row.team))
 }
 
-function clampPoints(value) {
-  return Math.max(0, Math.min(9, value))
+const MOBILE_GROUPS_MEDIA_QUERY = '(max-width: 768px)'
+const GROUPS_SESSION_TUTORIAL_KEY_PREFIX = 'groups-scoring-session-seen'
+
+function getSessionTutorialKey(userId) {
+  return `${GROUPS_SESSION_TUTORIAL_KEY_PREFIX}-${userId}`
 }
 
-const MOBILE_GROUPS_MEDIA_QUERY = '(max-width: 768px)'
+function ScoringTutorial({ position, onClose, onNext }) {
+  const isFirstPosition = position === 1
+
+  return (
+    <div className="groups-context-tutorial-layer">
+      <div className="groups-context-tutorial-backdrop" />
+
+      <article
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Puntuacion del puesto ${position}`}
+        className="groups-context-tutorial-card"
+      >
+        <button type="button" className="groups-context-tutorial-close" onClick={onClose} aria-label="Cerrar tutorial">
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="groups-context-tutorial-icon">
+          <Star className="h-8 w-8" fill="currentColor" />
+        </div>
+
+        <p className="groups-context-tutorial-kicker">Puntuacion de grupos</p>
+        <h3>{`Puesto numero ${position}`}</h3>
+        <p className="groups-context-tutorial-copy">
+          {`Si aciertas que esta seleccion termina en el puesto ${position}, sumas 3 puntos por la posicion exacta.`}
+        </p>
+
+        <div className="groups-context-tutorial-breakdown">
+          <span>
+            <strong>+3</strong>
+            Puesto exacto
+          </span>
+          <span>
+            <strong>+1</strong>
+            Clasifica al top 2
+          </span>
+        </div>
+
+        <div className="groups-context-tutorial-total">Hasta 4 puntos</div>
+
+        <button type="button" className="groups-context-tutorial-action" onClick={isFirstPosition ? onNext : onClose}>
+          {isFirstPosition ? 'Siguiente: puesto 2' : 'Entendido'}
+        </button>
+      </article>
+
+      <aside className="groups-context-tutorial-tip">
+        <Info className="h-5 w-5" />
+        <p>
+          {`El puesto numero ${position} puede sumar 4 puntos: 3 por acertar la posicion y 1 porque el equipo clasifica dentro del top 2.`}
+        </p>
+      </aside>
+    </div>
+  )
+}
 
 function buildRows(teamsByGroup, predictionsByGroup) {
   return GROUPS.reduce((accumulator, group) => {
@@ -48,7 +104,7 @@ function buildRows(teamsByGroup, predictionsByGroup) {
       team: teamById.get(row.team_id) ?? row.team ?? null,
       group_letter: row.group_letter ?? group,
       predicted_position: Number(row.predicted_position ?? index + 1),
-      predicted_points: clampPoints(Number(row.predicted_points ?? row.points ?? Math.max(0, 3 - index))),
+      predicted_points: Math.max(0, 3 - index),
     }))
     const missingRows = baseRows.filter(
       (baseRow) => !enrichedRows.some((savedRow) => savedRow.team_id === baseRow.team_id)
@@ -60,6 +116,7 @@ function buildRows(teamsByGroup, predictionsByGroup) {
       .map((row, index) => ({
         ...row,
         predicted_position: index + 1,
+        predicted_points: Math.max(0, 3 - index),
       }))
 
     return accumulator
@@ -97,11 +154,7 @@ function GroupSelectorCard({ active, complete, group, onSelect, rows }) {
   )
 }
 
-function stopDragPropagation(event) {
-  event.stopPropagation()
-}
-
-function SortablePlacementSlot({ disabled, row, mobileLayout, onPointsChange }) {
+function SortablePlacementSlot({ disabled, highlighted, row, mobileLayout }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.team_id,
     disabled,
@@ -113,7 +166,7 @@ function SortablePlacementSlot({ disabled, row, mobileLayout, onPointsChange }) 
     <article
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`groups-placement-slot${isDragging ? ' is-dragging' : ''}${mobileLayout && !disabled ? ' is-mobile-sortable' : ''}`}
+      className={`groups-placement-slot${isDragging ? ' is-dragging' : ''}${highlighted ? ' is-tutorial-highlighted' : ''}${mobileLayout && !disabled ? ' is-mobile-sortable' : ''}`}
       {...dragBindings}
     >
       <div className="groups-placement-slot-top">
@@ -124,33 +177,10 @@ function SortablePlacementSlot({ disabled, row, mobileLayout, onPointsChange }) 
 
         <div className="groups-placement-slot-tools">
           {mobileLayout ? (
-            <>
-              <label
-                className="groups-placement-inline-points"
-                onPointerDown={stopDragPropagation}
-                onMouseDown={stopDragPropagation}
-                onTouchStart={stopDragPropagation}
-              >
-                <span>Pts</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="9"
-                  value={row.predicted_points}
-                  disabled={disabled}
-                  onChange={(event) => onPointsChange(row.team_id, Number(event.target.value))}
-                  className="field-input groups-placement-inline-points-input"
-                  onPointerDown={stopDragPropagation}
-                  onMouseDown={stopDragPropagation}
-                  onTouchStart={stopDragPropagation}
-                />
-              </label>
-
-              <span className="groups-placement-touch-pill" aria-hidden="true">
-                <GripVertical className="h-4 w-4" />
-                <span>Mover</span>
-              </span>
-            </>
+            <span className="groups-placement-touch-pill" aria-hidden="true">
+              <GripVertical className="h-4 w-4" />
+              <span>Mover</span>
+            </span>
           ) : (
             <button
               type="button"
@@ -175,14 +205,11 @@ function SortablePlacementSlot({ disabled, row, mobileLayout, onPointsChange }) 
       </div>
 
       <div className="groups-placement-slot-footer">
-        {mobileLayout ? (
-          <span className="groups-placement-slot-note">Arrastra desde cualquier parte de la tarjeta para subir o bajar el equipo.</span>
-        ) : (
-          <>
-            <span className="groups-placement-slot-points">{row.predicted_points} pts</span>
-            <span className="groups-placement-slot-note">Arrastra para cambiar el orden</span>
-          </>
-        )}
+        <span className="groups-placement-slot-note">
+          {mobileLayout
+            ? 'Arrastra desde cualquier parte de la tarjeta para subir o bajar el equipo.'
+            : 'Arrastra para cambiar el orden'}
+        </span>
       </div>
     </article>
   )
@@ -216,6 +243,8 @@ export default function GroupsPage() {
   const [activeTeamId, setActiveTeamId] = useState(null)
   const [toast, setToast] = useState(null)
   const [submittingTarget, setSubmittingTarget] = useState('')
+  const [tutorialPosition, setTutorialPosition] = useState(null)
+  const [tutorialSeenThisSession, setTutorialSeenThisSession] = useState(false)
   const stagePanelRef = useRef(null)
 
   const sensors = useSensors(
@@ -249,6 +278,13 @@ export default function GroupsPage() {
   useEffect(() => {
     setSelectedGroup((current) => (current && GROUPS.includes(current) ? current : firstPendingGroup))
   }, [firstPendingGroup])
+
+  useEffect(() => {
+    if (!user?.id || typeof window === 'undefined') return
+
+    setTutorialPosition(null)
+    setTutorialSeenThisSession(window.sessionStorage.getItem(getSessionTutorialKey(user.id)) === '1')
+  }, [user?.id])
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
@@ -285,6 +321,7 @@ export default function GroupsPage() {
       [group]: rows.map((row, index) => ({
         ...row,
         predicted_position: index + 1,
+        predicted_points: Math.max(0, 3 - index),
       })),
     }))
   }
@@ -325,26 +362,16 @@ export default function GroupsPage() {
     if (oldIndex < 0 || newIndex < 0) return
 
     updateGroupRows(selectedGroup, arrayMove(rows, oldIndex, newIndex))
+
+    if (!tutorialSeenThisSession && user?.id && typeof window !== 'undefined') {
+      window.sessionStorage.setItem(getSessionTutorialKey(user.id), '1')
+      setTutorialSeenThisSession(true)
+      setTutorialPosition(1)
+    }
   }
 
   function handleDragCancel() {
     setActiveTeamId(null)
-  }
-
-  function handlePointsChange(teamId, value) {
-    const safeValue = clampPoints(Number.isNaN(value) ? 0 : value)
-
-    updateGroupRows(
-      selectedGroup,
-      activeRows.map((row) =>
-        row.team_id === teamId
-          ? {
-              ...row,
-              predicted_points: safeValue,
-            }
-          : row
-      )
-    )
   }
 
   async function handleSaveSelectedGroup() {
@@ -408,8 +435,8 @@ export default function GroupsPage() {
           <p className="dashboard-services-kicker">Fase de grupos</p>
           <h1 className="dashboard-services-title">Ordena tus grupos</h1>
           <p className="dashboard-services-description">
-            Usa el mismo ritmo visual del dashboard para elegir un grupo, mover las selecciones a su puesto final y
-            ajustar los puntos con una lectura clara en cada pantalla.
+            Elige un grupo y arrastra cada seleccion hasta el puesto donde crees que terminara. Aqui solo defines el
+            orden final; los puntos del Mundialito se calculan automaticamente con los resultados oficiales.
           </p>
         </div>
 
@@ -501,7 +528,7 @@ export default function GroupsPage() {
             </div>
           </div>
 
-          <p className="groups-mobile-selector-note">Elige un grupo y te llevamos directo al editor para arrastrar y ajustar puntos.</p>
+          <p className="groups-mobile-selector-note">Elige un grupo y te llevamos directo al editor para ordenar los equipos.</p>
         </div>
 
         <div className="groups-selector-scroller">
@@ -520,19 +547,22 @@ export default function GroupsPage() {
         </div>
       </div>
 
-      <div ref={stagePanelRef} className="groups-stage-panel">
+      <div
+        ref={stagePanelRef}
+        className={`groups-stage-panel${tutorialPosition ? ' has-context-tutorial' : ''}`}
+      >
         <div className="groups-stage-head">
           <div className="groups-section-copy">
             <p className="groups-section-kicker">Ranking visual</p>
             <h2 className="groups-section-title">Grupo {selectedGroup || '--'}</h2>
             <p className="groups-section-description">
               {isMobileLayout
-                ? 'Arrastra cada tarjeta desde donde te quede mas comodo y ajusta sus puntos ahi mismo.'
-                : 'Arrastra cada seleccion al puesto donde crees que terminara. El orden del ranking se refleja abajo en la tabla de puntos.'}
+                ? 'Arrastra cada tarjeta desde donde te quede mas comodo para subir o bajar el equipo.'
+                : 'Arrastra cada seleccion al puesto donde crees que terminara. El orden se refleja abajo en el resumen del grupo.'}
             </p>
           </div>
           <span className={`groups-validation-pill${activeValidation.valid ? ' is-valid' : ''}`}>
-            {activeValidation.valid ? 'Grupo listo' : 'Ajusta el orden o los puntos'}
+            {activeValidation.valid ? 'Grupo listo' : 'Ajusta el orden'}
           </span>
         </div>
 
@@ -550,8 +580,8 @@ export default function GroupsPage() {
                   key={row.team_id}
                   row={row}
                   disabled={locked}
+                  highlighted={tutorialPosition === row.predicted_position}
                   mobileLayout={isMobileLayout}
-                  onPointsChange={handlePointsChange}
                 />
               ))}
             </div>
@@ -561,16 +591,24 @@ export default function GroupsPage() {
         </DndContext>
 
         <p className={`groups-stage-feedback${activeValidation.valid ? ' is-valid' : ''}`}>{activeValidation.message}</p>
+
+        {tutorialPosition ? (
+          <ScoringTutorial
+            position={tutorialPosition}
+            onClose={() => setTutorialPosition(null)}
+            onNext={() => setTutorialPosition(2)}
+          />
+        ) : null}
       </div>
 
       <div className="groups-summary-panel">
         <div className="groups-summary-head">
           <div className="groups-section-copy">
             <p className="groups-section-kicker">Tabla del grupo</p>
-            <h2 className="groups-section-title">Pais y puntos</h2>
+            <h2 className="groups-section-title">Tu orden final</h2>
             <p className="groups-section-description">
-              Completa los puntos al lado de cada pais. La validacion exige que el 1° no tenga menos puntos que el 2°,
-              y asi sucesivamente.
+              Revisa la posicion de cada pais antes de guardar. Puedes volver a arrastrar las tarjetas si quieres hacer
+              un cambio.
             </p>
           </div>
         </div>
@@ -579,7 +617,6 @@ export default function GroupsPage() {
           <div className="groups-table-head-row">
             <span>Posicion</span>
             <span>Pais</span>
-            <span>Puntos</span>
           </div>
 
           <div className="groups-table-body">
@@ -597,19 +634,6 @@ export default function GroupsPage() {
                     <span>{getTeamTokenLabel(row.team)}</span>
                   </div>
                 </div>
-
-                <label className="groups-points-field">
-                  <span className="sr-only">{`Puntos de ${row.team?.name ?? 'equipo'}`}</span>
-                  <input
-                    type="number"
-                    min="0"
-                    max="9"
-                    value={row.predicted_points}
-                    disabled={locked}
-                    onChange={(event) => handlePointsChange(row.team_id, Number(event.target.value))}
-                    className="field-input groups-points-input"
-                  />
-                </label>
               </div>
             ))}
           </div>

@@ -40,73 +40,57 @@ const SIDE_LAYOUTS = [
   {
     key: 'left-r32',
     side: 'left',
-    round: ROUNDS.ROUND_OF_32,
+    orderKey: 'round32',
     col: 0,
-    start: 0,
-    end: 8,
     rowForIndex: (index: number) => index * 2 + 1,
   },
   {
     key: 'left-r16',
     side: 'left',
-    round: ROUNDS.ROUND_OF_16,
+    orderKey: 'round16',
     col: 1,
-    start: 0,
-    end: 4,
     rowForIndex: (index: number) => index * 4 + 2,
   },
   {
     key: 'left-qf',
     side: 'left',
-    round: ROUNDS.QUARTER_FINALS,
+    orderKey: 'quarterFinals',
     col: 2,
-    start: 0,
-    end: 2,
     rowForIndex: (index: number) => index * 8 + 4,
   },
   {
     key: 'left-sf',
     side: 'left',
-    round: ROUNDS.SEMI_FINALS,
+    orderKey: 'semiFinals',
     col: 3,
-    start: 0,
-    end: 1,
     rowForIndex: () => 8,
   },
   {
     key: 'right-sf',
     side: 'right',
-    round: ROUNDS.SEMI_FINALS,
+    orderKey: 'semiFinals',
     col: 5,
-    start: 1,
-    end: 2,
     rowForIndex: () => 8,
   },
   {
     key: 'right-qf',
     side: 'right',
-    round: ROUNDS.QUARTER_FINALS,
+    orderKey: 'quarterFinals',
     col: 6,
-    start: 2,
-    end: 4,
     rowForIndex: (index: number) => index * 8 + 4,
   },
   {
     key: 'right-r16',
     side: 'right',
-    round: ROUNDS.ROUND_OF_16,
+    orderKey: 'round16',
     col: 7,
-    start: 4,
-    end: 8,
     rowForIndex: (index: number) => index * 4 + 2,
   },
   {
     key: 'right-r32',
     side: 'right',
-    round: ROUNDS.ROUND_OF_32,
+    orderKey: 'round32',
     col: 8,
-    start: 8,
-    end: 16,
     rowForIndex: (index: number) => index * 2 + 1,
   },
 ] as const
@@ -138,6 +122,13 @@ type Connector = {
   key: string
   active: boolean
   path: string
+}
+
+type BranchOrder = {
+  round32: string[]
+  round16: string[]
+  quarterFinals: string[]
+  semiFinals: string[]
 }
 
 function getWinnerId(winner: BracketMatch['winnerTeamId']) {
@@ -178,89 +169,96 @@ function getConnectionPath(source: { col: number; row: number; span: number }, t
   return `M ${sourceX} ${sourceY} H ${midX} V ${targetY} H ${targetX}`
 }
 
-function getPositionedMatches(groupedMatches: Record<string, BracketMatch[]>) {
-  return SIDE_LAYOUTS.flatMap((layout) => {
-    const roundMatches = groupedMatches[layout.round] ?? []
+function getSourceMatchCodes(match?: BracketMatch | null) {
+  if (!match) return []
 
-    return roundMatches.slice(layout.start, layout.end).map((match, localIndex) => ({
-      key: `${layout.key}-${match.match_code}`,
-      match,
-      col: layout.col,
-      row: layout.rowForIndex(localIndex),
-      span: 2,
-      side: layout.side,
-    })) as PositionedMatch[]
-  })
+  return [match.home_source_match, match.away_source_match].filter(
+    (matchCode): matchCode is string => Boolean(matchCode)
+  )
 }
 
-function getLayoutMatch(round: string, globalIndex: number, groupedMatches: Record<string, BracketMatch[]>) {
-  const layout = SIDE_LAYOUTS.find((item) => item.round === round && globalIndex >= item.start && globalIndex < item.end)
-  const match = groupedMatches[round]?.[globalIndex]
+function buildBranchOrder(rootMatchCode: string | undefined, matchByCode: Map<string, BracketMatch>): BranchOrder {
+  const semiFinals = rootMatchCode ? [rootMatchCode] : []
+  const quarterFinals = semiFinals.flatMap((matchCode) => getSourceMatchCodes(matchByCode.get(matchCode)))
+  const round16 = quarterFinals.flatMap((matchCode) => getSourceMatchCodes(matchByCode.get(matchCode)))
+  const round32 = round16.flatMap((matchCode) => getSourceMatchCodes(matchByCode.get(matchCode)))
 
-  if (!layout || !match) return null
+  return { round32, round16, quarterFinals, semiFinals }
+}
+
+function getBracketTopology(groupedMatches: Record<string, BracketMatch[]>) {
+  const matchByCode = new Map(
+    Object.values(groupedMatches)
+      .flat()
+      .map((match) => [match.match_code, match])
+  )
+  const finalMatch = groupedMatches[ROUNDS.FINAL]?.[0]
 
   return {
-    match,
-    col: layout.col,
-    row: layout.rowForIndex(globalIndex - layout.start),
-    span: 2,
+    matchByCode,
+    left: buildBranchOrder(finalMatch?.home_source_match, matchByCode),
+    right: buildBranchOrder(finalMatch?.away_source_match, matchByCode),
   }
 }
 
-function buildPairConnections(
+function getPositionedMatches(groupedMatches: Record<string, BracketMatch[]>) {
+  const topology = getBracketTopology(groupedMatches)
+
+  return SIDE_LAYOUTS.flatMap((layout) => {
+    const branch = layout.side === 'left' ? topology.left : topology.right
+    const matchCodes = branch[layout.orderKey]
+
+    return matchCodes.flatMap((matchCode, localIndex) => {
+      const match = topology.matchByCode.get(matchCode)
+      if (!match) return []
+
+      return [
+        {
+          key: `${layout.key}-${match.match_code}`,
+          match,
+          col: layout.col,
+          row: layout.rowForIndex(localIndex),
+          span: 2,
+          side: layout.side,
+        },
+      ]
+    }) as PositionedMatch[]
+  })
+}
+
+function getConnectors(
   groupedMatches: Record<string, BracketMatch[]>,
-  sourceRound: string,
-  targetRound: string,
-  sourceStart: number,
-  targetStart: number,
-  targetCount: number
+  positionedMatches: PositionedMatch[]
 ) {
+  const positionedByCode = new Map(
+    positionedMatches.map((positionedMatch) => [positionedMatch.match.match_code, positionedMatch])
+  )
   const connections: Connector[] = []
+  const finalMatch = groupedMatches[ROUNDS.FINAL]?.[0]
+  const targetMatches = [
+    ...positionedMatches.filter((positionedMatch) => positionedMatch.match.round !== ROUNDS.ROUND_OF_32),
+    ...(finalMatch
+      ? [{
+          key: `final-${finalMatch.match_code}`,
+          match: finalMatch,
+          ...FINAL_LAYOUT,
+          side: 'left' as const,
+        }]
+      : []),
+  ]
 
-  for (let index = 0; index < targetCount; index += 1) {
-    const target = getLayoutMatch(targetRound, targetStart + index, groupedMatches)
-    const firstSource = getLayoutMatch(sourceRound, sourceStart + index * 2, groupedMatches)
-    const secondSource = getLayoutMatch(sourceRound, sourceStart + index * 2 + 1, groupedMatches)
-
-    ;[firstSource, secondSource].forEach((source, sourceIndex) => {
-      if (!source || !target) return
+  targetMatches.forEach((target) => {
+    getSourceMatchCodes(target.match).forEach((sourceMatchCode) => {
+      const source = positionedByCode.get(sourceMatchCode)
+      if (!source) return
 
       connections.push({
-        key: `${source.match.match_code}-${target.match.match_code}-${sourceIndex}`,
+        key: `${source.match.match_code}-${target.match.match_code}`,
         active: Boolean(getWinnerId(source.match.winnerTeamId)),
         path: getConnectionPath(source, target),
       })
     })
-  }
-
-  return connections
-}
-
-function getConnectors(groupedMatches: Record<string, BracketMatch[]>) {
-  const connections = [
-    ...buildPairConnections(groupedMatches, ROUNDS.ROUND_OF_32, ROUNDS.ROUND_OF_16, 0, 0, 4),
-    ...buildPairConnections(groupedMatches, ROUNDS.ROUND_OF_16, ROUNDS.QUARTER_FINALS, 0, 0, 2),
-    ...buildPairConnections(groupedMatches, ROUNDS.QUARTER_FINALS, ROUNDS.SEMI_FINALS, 0, 0, 1),
-    ...buildPairConnections(groupedMatches, ROUNDS.ROUND_OF_32, ROUNDS.ROUND_OF_16, 8, 4, 4),
-    ...buildPairConnections(groupedMatches, ROUNDS.ROUND_OF_16, ROUNDS.QUARTER_FINALS, 4, 2, 2),
-    ...buildPairConnections(groupedMatches, ROUNDS.QUARTER_FINALS, ROUNDS.SEMI_FINALS, 2, 1, 1),
-  ]
-
-  const leftSemi = getLayoutMatch(ROUNDS.SEMI_FINALS, 0, groupedMatches)
-  const rightSemi = getLayoutMatch(ROUNDS.SEMI_FINALS, 1, groupedMatches)
-  const finalMatch = groupedMatches[ROUNDS.FINAL]?.[0]
-
-  if (finalMatch) {
-    ;[leftSemi, rightSemi].forEach((source, index) => {
-      if (!source) return
-
-      connections.push({
-        key: `${source.match.match_code}-${finalMatch.match_code}-${index}`,
-        active: Boolean(getWinnerId(source.match.winnerTeamId)),
-        path: getConnectionPath(source, FINAL_LAYOUT),
-      })
-    })
-  }
+  })
 
   return connections
 }
@@ -456,7 +454,7 @@ export default function BracketSimulatorView({
 }: BracketBoardProps) {
   const groupedMatches = getMatchesByRound(matches)
   const positionedMatches = getPositionedMatches(groupedMatches)
-  const connectors = getConnectors(groupedMatches)
+  const connectors = getConnectors(groupedMatches, positionedMatches)
   const finalMatch = groupedMatches[ROUNDS.FINAL]?.[0]
   const resolvedCount = matches.filter((match) => Boolean(getWinnerId(match.winnerTeamId))).length
   const sectionKicker = isSimulationMode ? 'Simulador eliminatorio' : 'Eliminatorias'

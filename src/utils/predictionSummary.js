@@ -21,7 +21,6 @@ export function buildQualifiedThirdRows(bestThirds = [], groupRows = []) {
         ...item,
         team_id: thirdRow?.team_id ?? `${item.group_letter}-third`,
         team: thirdRow?.team ?? null,
-        predicted_points: Number(thirdRow?.predicted_points ?? 0),
       }
     })
 }

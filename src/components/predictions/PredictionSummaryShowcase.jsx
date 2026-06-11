@@ -97,7 +97,6 @@ function GroupSummaryCard({ summary }) {
                 <span>{getTeamTokenLabel(row.team)}</span>
               </div>
             </div>
-            <span className="prediction-group-card-points">{row.predicted_points} pts</span>
           </div>
         ))}
       </div>
@@ -375,7 +374,7 @@ export default function PredictionSummaryShowcase({
             icon={Trophy}
             label="Grupos listos"
             value={`${completedGroups}/12`}
-            note="Todos tus grupos ordenados y con puntos."
+            note="Todos tus grupos ordenados del puesto 1 al 4."
           />
           <SummaryMetric
             icon={Gift}
@@ -495,7 +494,7 @@ export default function PredictionSummaryShowcase({
                           <span>{getTeamTokenLabel(row.team)}</span>
                         </div>
                       </div>
-                      <span className="prediction-thirds-note">{row.predicted_points} pts en tu fase de grupos</span>
+                      <span className="prediction-thirds-note">Elegido para avanzar desde el tercer lugar</span>
                     </div>
                   ))
                 ) : (

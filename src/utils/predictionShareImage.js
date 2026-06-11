@@ -207,11 +207,6 @@ async function drawGroupCard(context, summary, x, y, width, height) {
     context.font = '700 15px Inter, sans-serif'
     context.fillText(getTeamTokenLabel(row.team), x + 126, rowY + 42)
 
-    context.textAlign = 'right'
-    context.fillStyle = '#d8ff84'
-    context.font = '800 18px Inter, sans-serif'
-    context.fillText(`${row.predicted_points} pts`, x + width - 28, rowY + 29)
-    context.textAlign = 'left'
   }
 }
 
@@ -239,7 +234,7 @@ async function drawThirdCard(context, row, x, y, width, height) {
 
   context.fillStyle = '#d8ff84'
   context.font = '800 18px Inter, sans-serif'
-  context.fillText(`${row.predicted_points} pts en grupos`, x + 24, y + height - 24)
+  context.fillText('CLASIFICA COMO MEJOR TERCERO', x + 24, y + height - 24)
 }
 
 async function drawKnockoutMatchCard(context, match, x, y, width, height) {

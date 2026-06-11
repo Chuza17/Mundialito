@@ -33,8 +33,8 @@ export default function AdminBackupSection({
           <span className="admin-hub-badge">{readyCount}/12 listos</span>
         </div>
         <p className="admin-hub-card-copy">
-          Si la API externa falla, aqui puedes dejar armado el estado de cada grupo con posiciones y puntos. Por ahora se
-          guarda localmente en este navegador.
+          Si la API externa falla, aqui puedes dejar armado el orden final de cada grupo. Por ahora se guarda localmente
+          en este navegador.
         </p>
 
         {teamsError ? <p className="admin-hub-error mt-5">{teamsError}</p> : null}
@@ -94,16 +94,6 @@ export default function AdminBackupSection({
                         </select>
                       </label>
 
-                      <label className="admin-backup-mini-field">
-                        <span>Puntos</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="9"
-                          value={row.predicted_points}
-                          onChange={(event) => onFieldChange(row.team_id, 'predicted_points', event.target.value)}
-                        />
-                      </label>
                     </div>
                   )
                 })}
@@ -149,7 +139,6 @@ export default function AdminBackupSection({
                       <span>{team.code}</span>
                     </div>
                   </div>
-                  <strong className="admin-backup-preview-points">{row.predicted_points} pts</strong>
                 </div>
               )
             })}

@@ -1,5 +1,13 @@
 import { formatCountdown, formatDate } from '../../utils/helpers'
 
+function toLocalDateTimeInputValue(value) {
+  if (!value) return ''
+
+  const date = new Date(value)
+  const offset = date.getTimezoneOffset()
+  return new Date(date.getTime() - offset * 60 * 1000).toISOString().slice(0, 16)
+}
+
 export default function AdminSettingsSection({ saving, draft, onChange, onSave }) {
   const deadlineLabel = draft.deadline ? formatDate(draft.deadline) : 'Sin fecha definida'
   const deadlineCountdown = draft.deadline ? formatCountdown(draft.deadline) : 'Configura un cierre'
@@ -23,7 +31,7 @@ export default function AdminSettingsSection({ saving, draft, onChange, onSave }
           <input
             className="field-input"
             type="datetime-local"
-            value={draft.deadline ? new Date(draft.deadline).toISOString().slice(0, 16) : ''}
+            value={toLocalDateTimeInputValue(draft.deadline)}
             onChange={(event) => onChange('deadline', event.target.value ? new Date(event.target.value).toISOString() : '')}
           />
         </label>

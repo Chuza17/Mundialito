@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
-import { ArrowUpRight, Crown, Gift, Play, Trophy } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { ArrowRight, ArrowUpRight, Crown, Gift, Play, Trophy, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
 import { Link, useLocation } from 'react-router-dom'
 import CountdownTimer from '../common/CountdownTimer'
 import { POINTER_TRAIL_STORAGE_KEY, POINTER_TRAIL_TOGGLE_EVENT } from '../common/PointerTrail'
@@ -20,6 +21,242 @@ const PRIZE_ICONS = {
   trophy: Trophy,
   crown: Crown,
   gift: Gift,
+}
+
+const DASHBOARD_TOUR_SESSION_PREFIX = 'dashboard-tour-session-seen'
+const TOUR_KEY_BY_ROUTE = {
+  '/groups': 'groups',
+  '/best-thirds': 'best-thirds',
+  '/knockout': 'knockout',
+  '/results': 'results',
+  '/scoreboard': 'scoreboard',
+  '/my-prediction': 'my-prediction',
+}
+
+const CONTROL_TOUR_STEPS = [
+  {
+    key: 'neon',
+    phase: 'controls',
+    eyebrow: 'Controles rapidos',
+    title: 'Efecto de luz',
+    description: 'Activa o desactiva el rastro luminoso que sigue al cursor.',
+    placement: 'right',
+  },
+  {
+    key: 'music',
+    phase: 'controls',
+    eyebrow: 'Controles rapidos',
+    title: 'Musica del dashboard',
+    description: 'Reproduce o pausa la musica. Desde este control tambien puedes cambiar de cancion.',
+    placement: 'right',
+  },
+  {
+    key: 'points',
+    phase: 'controls',
+    eyebrow: 'Controles rapidos',
+    title: 'Sistema de puntos',
+    description: 'Abre la guia completa para consultar cuanto vale cada acierto del Mundialito.',
+    placement: 'left',
+  },
+  {
+    key: 'logout',
+    phase: 'controls',
+    eyebrow: 'Controles rapidos',
+    title: 'Cerrar sesion',
+    description: 'Usa este boton para salir de tu cuenta de forma segura.',
+    placement: 'left',
+  },
+]
+
+const WORKFLOW_TOUR_STEPS = [
+  {
+    key: 'groups',
+    route: '/groups',
+    phase: 'workflow',
+    stepNumber: 1,
+    title: 'Ordena los grupos',
+    description: 'Empieza aqui: coloca cada equipo del puesto 1 al 4 en los 12 grupos.',
+  },
+  {
+    key: 'best-thirds',
+    route: '/best-thirds',
+    phase: 'workflow',
+    stepNumber: 2,
+    title: 'Elige los mejores terceros',
+    description: 'Despues selecciona los 8 terceros lugares que crees que avanzaran.',
+  },
+  {
+    key: 'knockout',
+    route: '/knockout',
+    phase: 'workflow',
+    stepNumber: 3,
+    title: 'Completa las eliminatorias',
+    description: 'Escoge los ganadores de cada llave hasta definir al campeon.',
+  },
+  {
+    key: 'results',
+    route: '/results',
+    phase: 'workflow',
+    stepNumber: 4,
+    title: 'Predice resultados',
+    description: 'Consulta los partidos y guarda marcadores exactos antes de que comiencen.',
+  },
+  {
+    key: 'scoreboard',
+    route: '/scoreboard',
+    phase: 'workflow',
+    stepNumber: 5,
+    title: 'Revisa el scoreboard',
+    description: 'Mira tus puntos, tu posicion, los premios y el avance de los demas jugadores.',
+  },
+  {
+    key: 'my-prediction',
+    route: '/my-prediction',
+    phase: 'workflow',
+    stepNumber: 6,
+    title: 'Confirma tu quiniela',
+    description: 'Al final revisa y comparte el resumen completo de todas tus elecciones.',
+  },
+]
+
+function clamp(value, minimum, maximum) {
+  return Math.min(Math.max(value, minimum), maximum)
+}
+
+function getVisibleTourTarget(key) {
+  return [...document.querySelectorAll(`[data-dashboard-tour="${key}"]`)].find((element) => {
+    const rect = element.getBoundingClientRect()
+    const styles = window.getComputedStyle(element)
+    return rect.width > 0 && rect.height > 0 && styles.display !== 'none' && styles.visibility !== 'hidden'
+  })
+}
+
+function getTourTooltipPosition(rect, preferredPlacement) {
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  const width = Math.min(360, viewportWidth - 24)
+  const estimatedHeight = 240
+  const gap = 18
+  let placement = preferredPlacement
+  let left = rect.left + rect.width / 2 - width / 2
+  let top = rect.bottom + gap
+
+  if (preferredPlacement === 'right') {
+    left = rect.right + gap
+    top = rect.top + rect.height / 2 - estimatedHeight / 2
+    if (left + width > viewportWidth - 12) {
+      placement = 'left'
+      left = rect.left - width - gap
+    }
+  } else if (preferredPlacement === 'left') {
+    left = rect.left - width - gap
+    top = rect.top + rect.height / 2 - estimatedHeight / 2
+    if (left < 12) {
+      placement = 'right'
+      left = rect.right + gap
+    }
+  } else if (top + estimatedHeight > viewportHeight - 12) {
+    placement = 'top'
+    top = rect.top - estimatedHeight - gap
+  }
+
+  return {
+    left: clamp(left, 12, viewportWidth - width - 12),
+    top: clamp(top, 12, viewportHeight - estimatedHeight - 12),
+    width,
+    placement,
+  }
+}
+
+function DashboardTour({ activeIndex, onClose, onNext, steps }) {
+  const step = steps[activeIndex]
+  const [targetRect, setTargetRect] = useState(null)
+
+  useEffect(() => {
+    if (!step) return undefined
+
+    let retryTimer = 0
+    setTargetRect(null)
+
+    function updateTarget() {
+      const target = getVisibleTourTarget(step.key)
+
+      if (!target) {
+        retryTimer = window.setTimeout(updateTarget, 120)
+        return
+      }
+
+      const rect = target.getBoundingClientRect()
+      setTargetRect({
+        top: rect.top,
+        right: rect.right,
+        bottom: rect.bottom,
+        left: rect.left,
+        width: rect.width,
+        height: rect.height,
+      })
+    }
+
+    updateTarget()
+    window.addEventListener('resize', updateTarget)
+    window.addEventListener('scroll', updateTarget, true)
+
+    return () => {
+      window.clearTimeout(retryTimer)
+      window.removeEventListener('resize', updateTarget)
+      window.removeEventListener('scroll', updateTarget, true)
+    }
+  }, [step])
+
+  if (!step || !targetRect || typeof document === 'undefined') return null
+
+  const phaseSteps = steps.filter((item) => item.phase === step.phase)
+  const phaseIndex = phaseSteps.findIndex((item) => item.key === step.key)
+  const isLastStep = activeIndex === steps.length - 1
+  const tooltip = getTourTooltipPosition(targetRect, step.placement ?? 'bottom')
+  const padding = 7
+
+  return createPortal(
+    <div className="dashboard-tour-root">
+      <div className="dashboard-tour-click-blocker" />
+      <div
+        className="dashboard-tour-spotlight"
+        style={{
+          top: targetRect.top - padding,
+          left: targetRect.left - padding,
+          width: targetRect.width + padding * 2,
+          height: targetRect.height + padding * 2,
+        }}
+      />
+
+      <article
+        className={`dashboard-tour-tooltip is-${tooltip.placement}`}
+        style={{ top: tooltip.top, left: tooltip.left, width: tooltip.width }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dashboard-tour-title"
+      >
+        <button type="button" className="dashboard-tour-close" onClick={onClose} aria-label="Cerrar recorrido">
+          <X className="h-4 w-4" />
+        </button>
+
+        <p className="dashboard-tour-eyebrow">
+          {step.phase === 'workflow' ? `Paso ${step.stepNumber} de ${phaseSteps.length}` : step.eyebrow}
+        </p>
+        <h3 id="dashboard-tour-title">{step.title}</h3>
+        <p className="dashboard-tour-description">{step.description}</p>
+
+        <div className="dashboard-tour-footer">
+          <span className="dashboard-tour-progress">{`${phaseIndex + 1}/${phaseSteps.length}`}</span>
+          <button type="button" className="dashboard-tour-next" onClick={onNext}>
+            {isLastStep ? 'Finalizar' : step.phase === 'controls' && phaseIndex === phaseSteps.length - 1 ? 'Ver pasos' : 'Siguiente'}
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      </article>
+    </div>,
+    document.body,
+  )
 }
 
 function getStoredNeonPreference() {
@@ -167,6 +404,7 @@ export default function CinematicDashboard({
   const [showSimplifiedLogo, setShowSimplifiedLogo] = useState(alreadySeen)
   const [neonEnabled, setNeonEnabled] = useState(getStoredNeonPreference)
   const [pointsGuideOpen, setPointsGuideOpen] = useState(false)
+  const [tourStepIndex, setTourStepIndex] = useState(null)
   const scoreNumber = Number(score ?? 0)
   const scoreLabel = Number.isFinite(scoreNumber) ? scoreNumber.toLocaleString('es-CR') : '0'
   const spotlightRank = leaderboardSpotlight?.rank ?? null
@@ -178,6 +416,18 @@ export default function CinematicDashboard({
   const rightSections = ['/results', '/my-prediction'].map((route) => sectionByRoute.get(route)).filter(Boolean)
   const centerSection = sectionByRoute.get('/scoreboard')
   const adminSection = sections.find((section) => section.to.startsWith('/admin'))
+  const tourSteps = useMemo(() => {
+    const availableRoutes = new Set(sections.map((section) => section.to))
+
+    return [
+      ...CONTROL_TOUR_STEPS,
+      ...WORKFLOW_TOUR_STEPS.filter((step) => availableRoutes.has(step.route)).map((step) => ({
+        ...step,
+        placement: 'bottom',
+      })),
+    ]
+  }, [sections])
+  const tourStorageKey = userId ? `${DASHBOARD_TOUR_SESSION_PREFIX}-${userId}` : null
 
   useEffect(() => {
     if (!heroTextVisible) return
@@ -230,6 +480,41 @@ export default function CinematicDashboard({
     }
   }, [pointsGuideOpen])
 
+  useEffect(() => {
+    if (!tourStorageKey || typeof window === 'undefined') return undefined
+
+    setTourStepIndex(null)
+    if (window.sessionStorage.getItem(tourStorageKey) === '1') return undefined
+
+    const timerId = window.setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'auto' })
+      setPointsGuideOpen(false)
+      setTourStepIndex(0)
+    }, 1100)
+
+    return () => window.clearTimeout(timerId)
+  }, [tourStorageKey])
+
+  function completeTour() {
+    if (tourStorageKey) {
+      window.sessionStorage.setItem(tourStorageKey, '1')
+    }
+    setTourStepIndex(null)
+  }
+
+  function advanceTour() {
+    setTourStepIndex((current) => {
+      if (current == null || current >= tourSteps.length - 1) {
+        if (tourStorageKey) {
+          window.sessionStorage.setItem(tourStorageKey, '1')
+        }
+        return null
+      }
+
+      return current + 1
+    })
+  }
+
   function toggleNeonTrail() {
     const nextValue = !neonEnabled
     setNeonEnabled(nextValue)
@@ -246,6 +531,7 @@ export default function CinematicDashboard({
       <div className={`cinematic-control-cluster${hasStartedScroll ? ' is-logo-faded' : ''}`}>
         <button
           type="button"
+          data-dashboard-tour="neon"
           className={`cinematic-neon-toggle${neonEnabled ? ' is-active' : ' is-muted'}`}
           aria-label={neonEnabled ? 'Desactivar luz del cursor' : 'Activar luz del cursor'}
           aria-pressed={neonEnabled}
@@ -258,6 +544,7 @@ export default function CinematicDashboard({
           <div className={`cinematic-music-play-wrap${musicPlaying ? ' is-playing' : ''}`}>
             <button
               type="button"
+              data-dashboard-tour="music"
               className="cinematic-music-button is-play"
               aria-label={musicPlaying ? 'Pausar musica' : 'Reproducir musica'}
               onClick={toggleMusic}
@@ -286,6 +573,7 @@ export default function CinematicDashboard({
       <div className="cinematic-top-guide-wrap">
         <button
           type="button"
+          data-dashboard-tour="points"
           className="cinematic-points-guide-button is-topbar"
           aria-label="Ver sistema de puntos"
           onClick={() => setPointsGuideOpen(true)}
@@ -321,7 +609,7 @@ export default function CinematicDashboard({
       <div className={`cinematic-floating-hud${hasScrolled ? ' is-scrolled' : ''}`}>
         <nav className="cinematic-floating-menu" aria-label="Menu principal del dashboard">
           {sections.map((section) => (
-            <Link key={section.to} to={section.to}>
+            <Link key={section.to} to={section.to} data-dashboard-tour={TOUR_KEY_BY_ROUTE[section.to]}>
               {section.title}
             </Link>
           ))}
@@ -352,6 +640,7 @@ export default function CinematicDashboard({
               <Link
                 key={section.to}
                 to={section.to}
+                data-dashboard-tour={TOUR_KEY_BY_ROUTE[section.to]}
                 aria-label={section.title}
                 className={`mobile-dock-link${location.pathname === section.to ? ' is-active' : ''}`}
               >
@@ -364,6 +653,7 @@ export default function CinematicDashboard({
           {centerSection ? (
             <Link
               to={centerSection.to}
+              data-dashboard-tour={TOUR_KEY_BY_ROUTE[centerSection.to]}
               aria-label={centerSection.title}
               className={`mobile-dock-center${location.pathname === centerSection.to ? ' is-active' : ''}`}
             >
@@ -377,6 +667,7 @@ export default function CinematicDashboard({
               <Link
                 key={section.to}
                 to={section.to}
+                data-dashboard-tour={TOUR_KEY_BY_ROUTE[section.to]}
                 aria-label={section.title}
                 className={`mobile-dock-link${location.pathname === section.to ? ' is-active' : ''}`}
               >
@@ -493,6 +784,15 @@ export default function CinematicDashboard({
           <CinematicCard key={section.to} section={section} index={index} />
         ))}
       </div>
+
+      {tourStepIndex != null ? (
+        <DashboardTour
+          activeIndex={tourStepIndex}
+          onClose={completeTour}
+          onNext={advanceTour}
+          steps={tourSteps}
+        />
+      ) : null}
     </section>
   )
 }
