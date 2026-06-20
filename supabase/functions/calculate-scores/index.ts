@@ -4,6 +4,8 @@ import { ROUND_POINTS, computeCompletionPercentage } from '../_shared/worldcup.t
 
 const FINISHED_MATCH_STATUSES = new Set(['FINISHED', 'AWARDED'])
 const GROUP_STAGE_MATCHES_PER_GROUP = 6
+const MATCH_EXACT_SCORE_POINTS = 2
+const MATCH_WINNER_POINTS = 1
 
 function groupBy<T>(items: T[], keyGetter: (item: T) => string) {
   return items.reduce<Record<string, T[]>>((accumulator, item) => {
@@ -11,6 +13,67 @@ function groupBy<T>(items: T[], keyGetter: (item: T) => string) {
     accumulator[key] = [...(accumulator[key] ?? []), item]
     return accumulator
   }, {})
+}
+
+function getWinnerTeamIdFromScore(homeScore: number, awayScore: number, homeTeamId?: string | null, awayTeamId?: string | null) {
+  if (homeScore > awayScore) return homeTeamId ?? null
+  if (awayScore > homeScore) return awayTeamId ?? null
+  return null
+}
+
+function getActualWinnerTeamId(match: any) {
+  if (match?.winner_team_id) return match.winner_team_id
+
+  const homeScore = Number(match?.home_score)
+  const awayScore = Number(match?.away_score)
+  if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore)) return null
+
+  return getWinnerTeamIdFromScore(homeScore, awayScore, match?.home_team_id, match?.away_team_id)
+}
+
+function scoreMatchPrediction(prediction: any, realMatch: any) {
+  if (!realMatch) {
+    return { pointsAwarded: 0, exactScorePoints: 0, winnerPoints: 0 }
+  }
+
+  const predictedHomeScore = Number(prediction.predicted_home_score)
+  const predictedAwayScore = Number(prediction.predicted_away_score)
+  const realHomeScore = Number(realMatch.home_score)
+  const realAwayScore = Number(realMatch.away_score)
+
+  const exactScore =
+    Number.isFinite(predictedHomeScore) &&
+    Number.isFinite(predictedAwayScore) &&
+    predictedHomeScore === realHomeScore &&
+    predictedAwayScore === realAwayScore
+
+  if (exactScore) {
+    return {
+      pointsAwarded: MATCH_EXACT_SCORE_POINTS,
+      exactScorePoints: MATCH_EXACT_SCORE_POINTS,
+      winnerPoints: 0,
+    }
+  }
+
+  const predictedWinnerTeamId = getWinnerTeamIdFromScore(
+    predictedHomeScore,
+    predictedAwayScore,
+    realMatch.home_team_id,
+    realMatch.away_team_id
+  )
+  const actualWinnerTeamId = getActualWinnerTeamId(realMatch)
+  const winnerPoints =
+    predictedWinnerTeamId &&
+    actualWinnerTeamId &&
+    String(predictedWinnerTeamId) === String(actualWinnerTeamId)
+      ? MATCH_WINNER_POINTS
+      : 0
+
+  return {
+    pointsAwarded: winnerPoints,
+    exactScorePoints: 0,
+    winnerPoints,
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -49,7 +112,7 @@ Deno.serve(async (req: Request) => {
         .select('id, user_id, match_id, predicted_home_score, predicted_away_score, points_awarded'),
       adminClient
         .from('world_cup_matches')
-        .select('id, group_letter, round, status, home_score, away_score'),
+        .select('id, group_letter, round, status, home_team_id, away_team_id, home_score, away_score, winner_team_id'),
     ])
 
     if (profilesError || !profiles) return errorResponse('Unable to load profiles.', 500, profilesError?.message)
@@ -74,16 +137,13 @@ Deno.serve(async (req: Request) => {
     )
     const scoredMatchPredictions = matchScorePredictions.map((prediction: any) => {
       const realMatch: any = finishedMatchById.get(prediction.match_id)
-      const pointsAwarded =
-        realMatch &&
-        Number(prediction.predicted_home_score) === Number(realMatch.home_score) &&
-        Number(prediction.predicted_away_score) === Number(realMatch.away_score)
-          ? 2
-          : 0
+      const score = scoreMatchPrediction(prediction, realMatch)
 
       return {
         ...prediction,
-        points_awarded: pointsAwarded,
+        points_awarded: score.pointsAwarded,
+        match_score_exact_points: score.exactScorePoints,
+        match_winner_points: score.winnerPoints,
       }
     })
     const savedPointsByPredictionId = new Map(
@@ -98,9 +158,12 @@ Deno.serve(async (req: Request) => {
     )
 
     if (changedMatchPredictions.length) {
+      const changedMatchPredictionRows = changedMatchPredictions.map(
+        ({ match_score_exact_points: _exactPoints, match_winner_points: _winnerPoints, ...prediction }: any) => prediction
+      )
       const { error: scorePredictionsError } = await adminClient
         .from('match_score_predictions')
-        .upsert(changedMatchPredictions, { onConflict: 'id' })
+        .upsert(changedMatchPredictionRows, { onConflict: 'id' })
 
       if (scorePredictionsError) {
         return errorResponse(
@@ -155,6 +218,26 @@ Deno.serve(async (req: Request) => {
       },
       new Map()
     )
+    const matchScoreExactByUser = scoredMatchPredictions.reduce<Map<string, number>>(
+      (accumulator, row: any) => {
+        accumulator.set(
+          row.user_id,
+          (accumulator.get(row.user_id) ?? 0) + Number(row.match_score_exact_points ?? 0)
+        )
+        return accumulator
+      },
+      new Map()
+    )
+    const matchWinnerByUser = scoredMatchPredictions.reduce<Map<string, number>>(
+      (accumulator, row: any) => {
+        accumulator.set(
+          row.user_id,
+          (accumulator.get(row.user_id) ?? 0) + Number(row.match_winner_points ?? 0)
+        )
+        return accumulator
+      },
+      new Map()
+    )
 
     const scoreRows = profiles.map((profile: any) => {
       const userGroupPredictions = groupPredictionsByUser[profile.id] ?? []
@@ -171,6 +254,8 @@ Deno.serve(async (req: Request) => {
       let finalPoints = 0
       let championBonusPoints = 0
       const matchScoreBonusPoints = matchScoreBonusByUser.get(profile.id) ?? 0
+      const matchScoreExactPoints = matchScoreExactByUser.get(profile.id) ?? 0
+      const matchWinnerPoints = matchWinnerByUser.get(profile.id) ?? 0
 
       for (const prediction of userGroupPredictions) {
         const realRow = realGroupByTeamId.get(prediction.team_id)
@@ -261,6 +346,8 @@ Deno.serve(async (req: Request) => {
           semi_finals_points: semiFinalsPoints,
           final_points: finalPoints,
           champion_bonus_points: championBonusPoints,
+          match_score_exact_points: matchScoreExactPoints,
+          match_winner_points: matchWinnerPoints,
           match_score_bonus_points: matchScoreBonusPoints,
         },
         last_calculated_at: new Date().toISOString(),
@@ -284,6 +371,7 @@ Deno.serve(async (req: Request) => {
       users_updated: scoreRows.length,
       match_predictions_scored: scoredMatchPredictions.length,
       match_prediction_points_updated: changedMatchPredictions.length,
+      match_winner_points_awarded: [...matchWinnerByUser.values()].reduce((total, points) => total + points, 0),
       champion_team_id: championTeamId,
     })
   } catch (error) {

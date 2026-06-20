@@ -20,6 +20,13 @@ import { useAuth } from '../hooks/useAuth'
 
 const OPEN_MATCH_STATUSES = new Set(['SCHEDULED', 'TIMED'])
 
+function getPredictionPointsLabel(points) {
+  const value = Number(points ?? 0)
+  if (value === 1) return '+1 pt ganador'
+  if (value >= 2) return `+${value} pts exacto`
+  return '+0 pts'
+}
+
 function getTodayDateKey() {
   const now = new Date()
   const timezoneOffset = now.getTimezoneOffset() * 60 * 1000
@@ -180,9 +187,11 @@ function PredictionCard({ draft, match, onDraftChange, onRequestSave, prediction
           <span className="results-lock-pill is-closed"><Lock className="h-4 w-4" />Cerrado</span>
         )}
         {locked ? (
-          <span className={prediction.points_awarded ? 'results-points-pill is-hit' : 'results-points-pill'}>+{prediction.points_awarded ?? 0} pts</span>
+          <span className={prediction.points_awarded ? 'results-points-pill is-hit' : 'results-points-pill'}>
+            {getPredictionPointsLabel(prediction.points_awarded)}
+          </span>
         ) : (
-          <span className="results-points-pill">+2 pts exacto</span>
+          <span className="results-points-pill">+2 exacto / +1 ganador</span>
         )}
       </div>
     </article>
@@ -233,7 +242,7 @@ export default function WorldCupResultsPage() {
         icon: Lock,
         label: 'Puntos extra',
         value: bonusPoints,
-        note: '2 puntos por marcador exacto cuando el partido termina.',
+        note: '2 puntos por marcador exacto o 1 por acertar ganador.',
       },
     ],
     [bonusPoints, matches.length, predictions.length]
@@ -376,7 +385,7 @@ export default function WorldCupResultsPage() {
           <p className="dashboard-services-kicker">Resultados</p>
           <h1 className="dashboard-services-title">Partidos del Mundial</h1>
           <p className="dashboard-services-description">
-            Revisa los partidos del dia, bloquea tu marcador exacto antes del inicio y suma 2 puntos extra si lo pegas.
+            Revisa los partidos del dia, bloquea tu marcador exacto antes del inicio y suma puntos extra por exacto o ganador.
           </p>
         </div>
         <div className="results-actions">
@@ -471,7 +480,7 @@ export default function WorldCupResultsPage() {
         <div className="results-prediction-panel" role="tabpanel">
           <div className="groups-summary-head">
             <div className="groups-section-copy"><p className="groups-section-kicker">Predice tus resultados</p><h2 className="groups-section-title">Marcador exacto</h2><p className="groups-section-description">Escribe el marcador, confirma y queda bloqueado. Solo puedes guardar antes de que cierre el partido.</p></div>
-            <span className="groups-validation-pill"><Save className="h-4 w-4" /><span>+2 pts exacto</span></span>
+            <span className="groups-validation-pill"><Save className="h-4 w-4" /><span>+2 exacto / +1 ganador</span></span>
           </div>
           <div className="results-prediction-list">
             {dayMatches.length ? dayMatches.map((match) => <PredictionCard key={`prediction-${match.id}`} draft={drafts[match.id]} match={match} onDraftChange={handleDraftChange} onRequestSave={requestSavePrediction} prediction={predictionByMatchId.get(match.id)} teamById={teamById} />) : <div className="groups-stage-feedback">No hay partidos disponibles para predecir en esta fecha.</div>}

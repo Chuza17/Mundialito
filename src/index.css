@@ -3587,7 +3587,7 @@ textarea {
     line-height: 1.5;
   }
 
-  .groups-summary-panel {
+  .groups-page-panel:not(.scoreboard-page-panel) > .groups-summary-panel {
     display: none;
   }
 }
@@ -5454,7 +5454,7 @@ textarea {
     display: none;
   }
 
-  .groups-summary-panel {
+  .thirds-page-panel > .groups-summary-panel {
     display: none;
   }
 }
