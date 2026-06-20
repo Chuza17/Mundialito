@@ -60,7 +60,7 @@ export const SITE_INFO_PAGES = {
         title: 'Resultados',
         bullets: [
           'Cada marcador exacto acertado en la seccion de resultados suma 2 puntos extra.',
-          'Si no se acierta el marcador pero si el ganador del partido, suma 1 punto extra.',
+          'Acertar el resultado del partido suma 1 punto extra: gana local, empate o gana visitante.',
           'La prediccion debe guardarse antes de que cierre el partido para poder contar.',
         ],
       },

@@ -188,7 +188,7 @@ export default function DashboardServicesPage() {
         title: 'Resultados',
         subtitle: 'Marcadores reales',
         description: 'Consulta partidos del Mundial, guarda tu marcador y compite por puntos extra.',
-        summary: '+2 exacto / +1 ganador',
+        summary: '+2 exacto +1 resultado',
         status: 'Predice resultados',
         icon: Activity,
         video: [
