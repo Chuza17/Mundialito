@@ -480,21 +480,6 @@ export default function CinematicDashboard({
     }
   }, [pointsGuideOpen])
 
-  useEffect(() => {
-    if (!tourStorageKey || typeof window === 'undefined') return undefined
-
-    setTourStepIndex(null)
-    if (window.sessionStorage.getItem(tourStorageKey) === '1') return undefined
-
-    const timerId = window.setTimeout(() => {
-      window.scrollTo({ top: 0, behavior: 'auto' })
-      setPointsGuideOpen(false)
-      setTourStepIndex(0)
-    }, 1100)
-
-    return () => window.clearTimeout(timerId)
-  }, [tourStorageKey])
-
   function completeTour() {
     if (tourStorageKey) {
       window.sessionStorage.setItem(tourStorageKey, '1')
@@ -785,14 +770,6 @@ export default function CinematicDashboard({
         ))}
       </div>
 
-      {tourStepIndex != null ? (
-        <DashboardTour
-          activeIndex={tourStepIndex}
-          onClose={completeTour}
-          onNext={advanceTour}
-          steps={tourSteps}
-        />
-      ) : null}
     </section>
   )
 }

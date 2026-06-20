@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { DndContext, DragOverlay, MouseSensor, TouchSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Info, Star, X } from 'lucide-react'
+import { GripVertical } from 'lucide-react'
 import CountdownTimer from '../components/common/CountdownTimer'
 import SubpageBackRow from '../components/common/SubpageBackRow'
 import TeamOrb, { getTeamTokenLabel } from '../components/common/TeamOrb'
@@ -19,66 +19,6 @@ function getPreviewCodes(rows = []) {
 }
 
 const MOBILE_GROUPS_MEDIA_QUERY = '(max-width: 768px)'
-const GROUPS_SESSION_TUTORIAL_KEY_PREFIX = 'groups-scoring-session-seen'
-
-function getSessionTutorialKey(userId) {
-  return `${GROUPS_SESSION_TUTORIAL_KEY_PREFIX}-${userId}`
-}
-
-function ScoringTutorial({ position, onClose, onNext }) {
-  const isFirstPosition = position === 1
-
-  return (
-    <div className="groups-context-tutorial-layer">
-      <div className="groups-context-tutorial-backdrop" />
-
-      <article
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Puntuacion del puesto ${position}`}
-        className="groups-context-tutorial-card"
-      >
-        <button type="button" className="groups-context-tutorial-close" onClick={onClose} aria-label="Cerrar tutorial">
-          <X className="h-5 w-5" />
-        </button>
-
-        <div className="groups-context-tutorial-icon">
-          <Star className="h-8 w-8" fill="currentColor" />
-        </div>
-
-        <p className="groups-context-tutorial-kicker">Puntuacion de grupos</p>
-        <h3>{`Puesto numero ${position}`}</h3>
-        <p className="groups-context-tutorial-copy">
-          {`Si aciertas que esta seleccion termina en el puesto ${position}, sumas 3 puntos por la posicion exacta.`}
-        </p>
-
-        <div className="groups-context-tutorial-breakdown">
-          <span>
-            <strong>+3</strong>
-            Puesto exacto
-          </span>
-          <span>
-            <strong>+1</strong>
-            Clasifica al top 2
-          </span>
-        </div>
-
-        <div className="groups-context-tutorial-total">Hasta 4 puntos</div>
-
-        <button type="button" className="groups-context-tutorial-action" onClick={isFirstPosition ? onNext : onClose}>
-          {isFirstPosition ? 'Siguiente: puesto 2' : 'Entendido'}
-        </button>
-      </article>
-
-      <aside className="groups-context-tutorial-tip">
-        <Info className="h-5 w-5" />
-        <p>
-          {`El puesto numero ${position} puede sumar 4 puntos: 3 por acertar la posicion y 1 porque el equipo clasifica dentro del top 2.`}
-        </p>
-      </aside>
-    </div>
-  )
-}
 
 function buildRows(teamsByGroup, predictionsByGroup) {
   return GROUPS.reduce((accumulator, group) => {
@@ -154,7 +94,7 @@ function GroupSelectorCard({ active, complete, group, onSelect, rows }) {
   )
 }
 
-function SortablePlacementSlot({ disabled, highlighted, row, mobileLayout }) {
+function SortablePlacementSlot({ disabled, row, mobileLayout }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: row.team_id,
     disabled,
@@ -166,7 +106,7 @@ function SortablePlacementSlot({ disabled, highlighted, row, mobileLayout }) {
     <article
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`groups-placement-slot${isDragging ? ' is-dragging' : ''}${highlighted ? ' is-tutorial-highlighted' : ''}${mobileLayout && !disabled ? ' is-mobile-sortable' : ''}`}
+      className={`groups-placement-slot${isDragging ? ' is-dragging' : ''}${mobileLayout && !disabled ? ' is-mobile-sortable' : ''}`}
       {...dragBindings}
     >
       <div className="groups-placement-slot-top">
@@ -243,8 +183,6 @@ export default function GroupsPage() {
   const [activeTeamId, setActiveTeamId] = useState(null)
   const [toast, setToast] = useState(null)
   const [submittingTarget, setSubmittingTarget] = useState('')
-  const [tutorialPosition, setTutorialPosition] = useState(null)
-  const [tutorialSeenThisSession, setTutorialSeenThisSession] = useState(false)
   const stagePanelRef = useRef(null)
 
   const sensors = useSensors(
@@ -278,13 +216,6 @@ export default function GroupsPage() {
   useEffect(() => {
     setSelectedGroup((current) => (current && GROUPS.includes(current) ? current : firstPendingGroup))
   }, [firstPendingGroup])
-
-  useEffect(() => {
-    if (!user?.id || typeof window === 'undefined') return
-
-    setTutorialPosition(null)
-    setTutorialSeenThisSession(window.sessionStorage.getItem(getSessionTutorialKey(user.id)) === '1')
-  }, [user?.id])
 
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
@@ -363,11 +294,6 @@ export default function GroupsPage() {
 
     updateGroupRows(selectedGroup, arrayMove(rows, oldIndex, newIndex))
 
-    if (!tutorialSeenThisSession && user?.id && typeof window !== 'undefined') {
-      window.sessionStorage.setItem(getSessionTutorialKey(user.id), '1')
-      setTutorialSeenThisSession(true)
-      setTutorialPosition(1)
-    }
   }
 
   function handleDragCancel() {
@@ -549,7 +475,7 @@ export default function GroupsPage() {
 
       <div
         ref={stagePanelRef}
-        className={`groups-stage-panel${tutorialPosition ? ' has-context-tutorial' : ''}`}
+        className="groups-stage-panel"
       >
         <div className="groups-stage-head">
           <div className="groups-section-copy">
@@ -580,7 +506,6 @@ export default function GroupsPage() {
                   key={row.team_id}
                   row={row}
                   disabled={locked}
-                  highlighted={tutorialPosition === row.predicted_position}
                   mobileLayout={isMobileLayout}
                 />
               ))}
@@ -592,13 +517,6 @@ export default function GroupsPage() {
 
         <p className={`groups-stage-feedback${activeValidation.valid ? ' is-valid' : ''}`}>{activeValidation.message}</p>
 
-        {tutorialPosition ? (
-          <ScoringTutorial
-            position={tutorialPosition}
-            onClose={() => setTutorialPosition(null)}
-            onNext={() => setTutorialPosition(2)}
-          />
-        ) : null}
       </div>
 
       <div className="groups-summary-panel">
