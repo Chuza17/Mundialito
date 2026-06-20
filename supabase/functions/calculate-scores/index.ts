@@ -15,6 +15,14 @@ function groupBy<T>(items: T[], keyGetter: (item: T) => string) {
   }, {})
 }
 
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = []
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size))
+  }
+  return chunks
+}
+
 function getWinnerTeamIdFromScore(homeScore: number, awayScore: number, homeTeamId?: string | null, awayTeamId?: string | null) {
   if (homeScore > awayScore) return homeTeamId ?? null
   if (awayScore > homeScore) return awayTeamId ?? null
@@ -158,19 +166,24 @@ Deno.serve(async (req: Request) => {
     )
 
     if (changedMatchPredictions.length) {
-      const changedMatchPredictionRows = changedMatchPredictions.map(
-        ({ match_score_exact_points: _exactPoints, match_winner_points: _winnerPoints, ...prediction }: any) => prediction
-      )
-      const { error: scorePredictionsError } = await adminClient
-        .from('match_score_predictions')
-        .upsert(changedMatchPredictionRows, { onConflict: 'id' })
-
-      if (scorePredictionsError) {
-        return errorResponse(
-          'Unable to update match_score_predictions points.',
-          500,
-          scorePredictionsError.message
+      for (const predictionBatch of chunkArray(changedMatchPredictions, 50)) {
+        const updateResults = await Promise.all(
+          predictionBatch.map((prediction: any) =>
+            adminClient
+              .from('match_score_predictions')
+              .update({ points_awarded: prediction.points_awarded })
+              .eq('id', prediction.id)
+          )
         )
+        const scorePredictionsError = updateResults.find((result) => result.error)?.error
+
+        if (scorePredictionsError) {
+          return errorResponse(
+            'Unable to update match_score_predictions points.',
+            500,
+            scorePredictionsError.message
+          )
+        }
       }
     }
 
