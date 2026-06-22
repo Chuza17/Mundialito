@@ -7,7 +7,6 @@ export default function Navbar({ isCinematic = false, onLogout }) {
         type="button"
         onClick={onLogout}
         className="dashboard-logout-button"
-        data-dashboard-tour="logout"
       >
         <img src={logoutButtonImage} alt="" aria-hidden="true" />
         <span className="sr-only">Salir</span>

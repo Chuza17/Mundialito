@@ -264,10 +264,6 @@ export function AuthProvider({ children }) {
     }
 
     userIdRef.current = signedInUser?.id ?? null
-    if (signedInUser?.id && typeof window !== 'undefined') {
-      window.sessionStorage.removeItem(`groups-scoring-session-seen-${signedInUser.id}`)
-      window.sessionStorage.removeItem(`dashboard-tour-session-seen-${signedInUser.id}`)
-    }
     setUser(signedInUser)
     setProfile(nextProfile)
     setAuthError('')
@@ -297,8 +293,6 @@ export function AuthProvider({ children }) {
   async function logout() {
     if (userIdRef.current) {
       localStorage.removeItem(`hero-text-seen-${userIdRef.current}`)
-      sessionStorage.removeItem(`groups-scoring-session-seen-${userIdRef.current}`)
-      sessionStorage.removeItem(`dashboard-tour-session-seen-${userIdRef.current}`)
     }
     await supabase.auth.signOut()
     userIdRef.current = null

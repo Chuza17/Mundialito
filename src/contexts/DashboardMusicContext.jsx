@@ -28,7 +28,6 @@ function getNextTrackId(trackId) {
 export function DashboardMusicProvider({ children }) {
   const { loading, user } = useAuth()
   const audioRef = useRef(null)
-  const initialStartedForUserRef = useRef(null)
   const [selectedTrackId, setSelectedTrackId] = useState(getRandomTrackId)
   const [musicPlaying, setMusicPlaying] = useState(false)
   const musicAllowed = Boolean(user?.id) && !loading
@@ -95,47 +94,8 @@ export function DashboardMusicProvider({ children }) {
   }, [musicAllowed, musicPlaying, playTrack, selectedTrackId, stopTrack])
 
   useEffect(() => {
-    let isActive = true
-    let removePendingStart = () => {}
-
-    if (!musicAllowed || !user?.id) {
-      initialStartedForUserRef.current = null
-      stopTrack(true)
-      return undefined
-    }
-
-    if (initialStartedForUserRef.current === user.id) {
-      return undefined
-    }
-
-    initialStartedForUserRef.current = user.id
-
-    async function startInitialTrack() {
-      const initialTrackId = getRandomTrackId()
-      const didStart = await playTrack(initialTrackId)
-      if (!isActive || didStart) return
-
-      function startAfterGesture() {
-        removePendingStart()
-        void playTrack(initialTrackId)
-      }
-
-      removePendingStart = () => {
-        window.removeEventListener('pointerdown', startAfterGesture)
-        window.removeEventListener('keydown', startAfterGesture)
-      }
-
-      window.addEventListener('pointerdown', startAfterGesture, { once: true })
-      window.addEventListener('keydown', startAfterGesture, { once: true })
-    }
-
-    void startInitialTrack()
-
-    return () => {
-      isActive = false
-      removePendingStart()
-    }
-  }, [musicAllowed, playTrack, stopTrack, user?.id])
+    if (!musicAllowed) stopTrack(true)
+  }, [musicAllowed, stopTrack])
 
   const value = useMemo(
     () => ({
