@@ -6,6 +6,7 @@ const FINISHED_MATCH_STATUSES = new Set(['FINISHED', 'AWARDED'])
 const GROUP_STAGE_MATCHES_PER_GROUP = 6
 const MATCH_EXACT_SCORE_POINTS = 2
 const MATCH_OUTCOME_POINTS = 1
+const SELECT_PAGE_SIZE = 1000
 
 function groupBy<T>(items: T[], keyGetter: (item: T) => string) {
   return items.reduce<Record<string, T[]>>((accumulator, item) => {
@@ -21,6 +22,28 @@ function chunkArray<T>(items: T[], size: number) {
     chunks.push(items.slice(index, index + size))
   }
   return chunks
+}
+
+async function selectAllRows(
+  table: string,
+  columns = '*',
+  configureQuery: (query: any) => any = (query) => query
+) {
+  const rows: any[] = []
+
+  for (let start = 0; ; start += SELECT_PAGE_SIZE) {
+    const end = start + SELECT_PAGE_SIZE - 1
+    const query = configureQuery(adminClient.from(table).select(columns)).range(start, end)
+    const { data, error } = await query
+
+    if (error) return { data: null, error }
+
+    rows.push(...(data ?? []))
+
+    if (!data || data.length < SELECT_PAGE_SIZE) {
+      return { data: rows, error: null }
+    }
+  }
 }
 
 function getScoreOutcome(homeScore: number, awayScore: number) {
@@ -85,19 +108,27 @@ Deno.serve(async (req: Request) => {
       { data: matchScorePredictions, error: matchScorePredictionsError },
       { data: worldCupMatches, error: worldCupMatchesError },
     ] = await Promise.all([
-      adminClient.from('profiles').select('id, username, display_name, role, is_active').eq('role', 'user').eq('is_active', true),
-      adminClient.from('real_results_groups').select('*'),
-      adminClient.from('real_results_knockout').select('*'),
-      adminClient.from('group_predictions').select('*'),
-      adminClient.from('best_thirds_predictions').select('*'),
-      adminClient.from('knockout_predictions').select('*'),
-      adminClient.from('knockout_matches').select('match_code, round'),
-      adminClient
-        .from('match_score_predictions')
-        .select('id, user_id, match_id, predicted_home_score, predicted_away_score, points_awarded'),
-      adminClient
-        .from('world_cup_matches')
-        .select('id, group_letter, round, status, home_team_id, away_team_id, home_score, away_score, winner_team_id'),
+      selectAllRows(
+        'profiles',
+        'id, username, display_name, role, is_active',
+        (query) => query.eq('role', 'user').eq('is_active', true).order('id')
+      ),
+      selectAllRows('real_results_groups', '*', (query) => query.order('group_letter').order('final_position')),
+      selectAllRows('real_results_knockout', '*', (query) => query.order('match_code')),
+      selectAllRows('group_predictions', '*', (query) => query.order('user_id')),
+      selectAllRows('best_thirds_predictions', '*', (query) => query.order('user_id')),
+      selectAllRows('knockout_predictions', '*', (query) => query.order('user_id')),
+      selectAllRows('knockout_matches', 'match_code, round', (query) => query.order('match_code')),
+      selectAllRows(
+        'match_score_predictions',
+        'id, user_id, match_id, predicted_home_score, predicted_away_score, points_awarded',
+        (query) => query.order('id')
+      ),
+      selectAllRows(
+        'world_cup_matches',
+        'id, group_letter, round, status, home_team_id, away_team_id, home_score, away_score, winner_team_id',
+        (query) => query.order('utc_date')
+      ),
     ])
 
     if (profilesError || !profiles) return errorResponse('Unable to load profiles.', 500, profilesError?.message)

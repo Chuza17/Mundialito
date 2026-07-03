@@ -263,6 +263,69 @@ export function getQualifiedThirds(realGroupRows: RealGroupRow[]) {
     })
 }
 
+export function isBestThirdSource(sourceType?: string | null, sourceGroup?: string | null, sourcePosition?: number | null) {
+  return sourceType === 'best_third' || (sourceType === 'group_position' && !sourceGroup && Number(sourcePosition) === 3)
+}
+
+function readProviderScoreValue(scoreNode: any, side: 'home' | 'away') {
+  const legacyKey = side === 'home' ? 'homeTeam' : 'awayTeam'
+  const value = scoreNode?.[side] ?? scoreNode?.[legacyKey]
+  if (value === null || value === undefined) return null
+
+  const numericValue = Number(value)
+  return Number.isFinite(numericValue) ? numericValue : null
+}
+
+export function wasProviderMatchDecidedByPenalties(match: any) {
+  const duration = match.score?.duration
+  const homePenalties = readProviderScoreValue(match.score?.penalties, 'home')
+  const awayPenalties = readProviderScoreValue(match.score?.penalties, 'away')
+
+  return duration === 'PENALTY_SHOOTOUT' || (
+    homePenalties !== null &&
+    awayPenalties !== null &&
+    homePenalties !== awayPenalties
+  )
+}
+
+export function getProviderMatchScoreBeforePenalties(match: any) {
+  const homeFullTime = readProviderScoreValue(match.score?.fullTime, 'home')
+  const awayFullTime = readProviderScoreValue(match.score?.fullTime, 'away')
+
+  if (!wasProviderMatchDecidedByPenalties(match)) {
+    return { home: homeFullTime, away: awayFullTime }
+  }
+
+  const homeRegularTime = readProviderScoreValue(match.score?.regularTime, 'home')
+  const awayRegularTime = readProviderScoreValue(match.score?.regularTime, 'away')
+  const homeExtraTime = readProviderScoreValue(match.score?.extraTime, 'home')
+  const awayExtraTime = readProviderScoreValue(match.score?.extraTime, 'away')
+
+  if (homeRegularTime !== null && awayRegularTime !== null) {
+    return {
+      home: homeRegularTime + (homeExtraTime ?? 0),
+      away: awayRegularTime + (awayExtraTime ?? 0),
+    }
+  }
+
+  const homePenalties = readProviderScoreValue(match.score?.penalties, 'home')
+  const awayPenalties = readProviderScoreValue(match.score?.penalties, 'away')
+
+  if (
+    homeFullTime !== null &&
+    awayFullTime !== null &&
+    homePenalties !== null &&
+    awayPenalties !== null
+  ) {
+    return {
+      home: Math.max(0, homeFullTime - homePenalties),
+      away: Math.max(0, awayFullTime - awayPenalties),
+    }
+  }
+
+  return { home: homeFullTime, away: awayFullTime }
+}
+
 export function getWinnerTeamIdFromProviderMatch(match: any, homeTeamId: string, awayTeamId: string) {
   const explicitWinner = match.score?.winner
   if (explicitWinner === 'HOME_TEAM') return homeTeamId
@@ -300,30 +363,26 @@ export function mapProviderStageToRound(stage?: string | null) {
 function buildRoundOf32Candidates(matchRow: any, groupLookup: Record<string, string>, qualifiedThirds: RealGroupRow[]) {
   const candidates = { fixedIds: [] as string[], thirdCandidateIds: [] as string[] }
 
-  if (matchRow.home_source_type === 'group_position') {
-    const teamId = groupLookup[`${matchRow.home_source_group}:${matchRow.home_source_position}`]
-    if (teamId) candidates.fixedIds.push(teamId)
-  }
-
-  if (matchRow.away_source_type === 'group_position') {
-    const teamId = groupLookup[`${matchRow.away_source_group}:${matchRow.away_source_position}`]
-    if (teamId) candidates.fixedIds.push(teamId)
-  }
-
-  if (matchRow.home_source_type === 'best_third') {
+  if (isBestThirdSource(matchRow.home_source_type, matchRow.home_source_group, matchRow.home_source_position)) {
     candidates.thirdCandidateIds.push(
       ...qualifiedThirds
         .filter((row) => matchRow.home_third_options?.includes(row.group_letter))
         .map((row) => row.team_id)
     )
+  } else if (matchRow.home_source_type === 'group_position') {
+    const teamId = groupLookup[`${matchRow.home_source_group}:${matchRow.home_source_position}`]
+    if (teamId) candidates.fixedIds.push(teamId)
   }
 
-  if (matchRow.away_source_type === 'best_third') {
+  if (isBestThirdSource(matchRow.away_source_type, matchRow.away_source_group, matchRow.away_source_position)) {
     candidates.thirdCandidateIds.push(
       ...qualifiedThirds
         .filter((row) => matchRow.away_third_options?.includes(row.group_letter))
         .map((row) => row.team_id)
     )
+  } else if (matchRow.away_source_type === 'group_position') {
+    const teamId = groupLookup[`${matchRow.away_source_group}:${matchRow.away_source_position}`]
+    if (teamId) candidates.fixedIds.push(teamId)
   }
 
   return candidates

@@ -4,11 +4,13 @@ import {
   DbTeam,
   buildTeamLookup,
   computeGroupResults,
+  getProviderMatchScoreBeforePenalties,
   getWinnerTeamIdFromProviderMatch,
   mapKnockoutRoundByExactTeams,
   mapProviderStageToRound,
   mapRoundOf32Matches,
   resolveProviderTeamToDbTeam,
+  wasProviderMatchDecidedByPenalties,
 } from '../_shared/worldcup.ts'
 
 const FOOTBALL_DATA_BASE_URL = Deno.env.get('FOOTBALL_DATA_BASE_URL') ?? 'https://api.football-data.org/v4'
@@ -77,6 +79,7 @@ function mapProviderMatchToWorldCupRow(match: any) {
     match.__homeTeamId,
     match.__awayTeamId
   )
+  const score = getProviderMatchScoreBeforePenalties(match)
 
   return {
     api_match_id: match.id,
@@ -94,8 +97,8 @@ function mapProviderMatchToWorldCupRow(match: any) {
     away_team_id: match.__awayTeamId,
     home_team_name: match.homeTeam?.name ?? null,
     away_team_name: match.awayTeam?.name ?? null,
-    home_score: match.score?.fullTime?.home ?? null,
-    away_score: match.score?.fullTime?.away ?? null,
+    home_score: score.home,
+    away_score: score.away,
     winner_team_id: winnerTeamId,
     synced_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -212,14 +215,17 @@ Deno.serve(async (req: Request) => {
 
       if (winnerTeamId) winnerMap.set(matchRow.match_code, winnerTeamId)
 
+      const score = getProviderMatchScoreBeforePenalties(apiMatch)
+
       knockoutRows.push({
         match_code: matchRow.match_code,
         round: matchRow.round,
         home_team_id: apiMatch.__homeTeamId,
         away_team_id: apiMatch.__awayTeamId,
         winner_team_id: winnerTeamId,
-        home_score: apiMatch.score?.fullTime?.home ?? null,
-        away_score: apiMatch.score?.fullTime?.away ?? null,
+        home_score: score.home,
+        away_score: score.away,
+        winner_in_penalties: wasProviderMatchDecidedByPenalties(apiMatch),
         status: apiMatch.status,
         played_at: apiMatch.utcDate,
         api_match_id: apiMatch.id,
@@ -247,14 +253,17 @@ Deno.serve(async (req: Request) => {
 
         if (winnerTeamId) winnerMap.set(matchRow.match_code, winnerTeamId)
 
+        const score = getProviderMatchScoreBeforePenalties(apiMatch)
+
         knockoutRows.push({
           match_code: matchRow.match_code,
           round: matchRow.round,
           home_team_id: apiMatch.__homeTeamId,
           away_team_id: apiMatch.__awayTeamId,
           winner_team_id: winnerTeamId,
-          home_score: apiMatch.score?.fullTime?.home ?? null,
-          away_score: apiMatch.score?.fullTime?.away ?? null,
+          home_score: score.home,
+          away_score: score.away,
+          winner_in_penalties: wasProviderMatchDecidedByPenalties(apiMatch),
           status: apiMatch.status,
           played_at: apiMatch.utcDate,
           api_match_id: apiMatch.id,
@@ -269,7 +278,7 @@ Deno.serve(async (req: Request) => {
 
     if (knockoutUpsertError) {
       return errorResponse(
-        'Unable to upsert real_results_knockout. Expected columns: match_code, round, home_team_id, away_team_id, winner_team_id, home_score, away_score, status, played_at, api_match_id, updated_at.',
+        'Unable to upsert real_results_knockout. Expected columns: match_code, round, home_team_id, away_team_id, winner_team_id, home_score, away_score, winner_in_penalties, status, played_at, api_match_id, updated_at.',
         500,
         knockoutUpsertError.message
       )

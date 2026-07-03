@@ -19,6 +19,7 @@ import { useAppLayoutChromeHidden } from '../hooks/useAppLayoutChrome'
 import { useAuth } from '../hooks/useAuth'
 
 const OPEN_MATCH_STATUSES = new Set(['SCHEDULED', 'TIMED'])
+const FINISHED_MATCH_STATUSES = new Set(['FINISHED', 'AWARDED'])
 
 function getPredictionPointsLabel(points) {
   const value = Number(points ?? 0)
@@ -69,6 +70,23 @@ function getOfficialScore(match) {
   return `${match.home_score} - ${match.away_score}`
 }
 
+function getMatchStatusLabel(match, teamById) {
+  const homeScore = Number(match.home_score)
+  const awayScore = Number(match.away_score)
+  const decidedByPenalties =
+    FINISHED_MATCH_STATUSES.has(match.status) &&
+    match.winner_team_id &&
+    Number.isFinite(homeScore) &&
+    Number.isFinite(awayScore) &&
+    homeScore === awayScore
+
+  if (decidedByPenalties) {
+    return `Penales: ${teamById.get(match.winner_team_id)?.name ?? 'ganador definido'}`
+  }
+
+  return match.status
+}
+
 function isPredictionOpen(match) {
   const closesAt = new Date(match.prediction_closes_at ?? match.utc_date).getTime()
   return !Number.isNaN(closesAt) && Date.now() < closesAt && OPEN_MATCH_STATUSES.has(match.status)
@@ -101,6 +119,21 @@ async function mapFunctionError(error, fallbackMessage) {
 
   if (error?.name === 'FunctionsFetchError') return 'No se pudo conectar con la Edge Function de resultados.'
   return error?.message || fallbackMessage
+}
+
+function getSavePredictionErrorMessage(error) {
+  const rawMessage = error?.message || ''
+  const normalizedMessage = rawMessage.toLowerCase()
+
+  if (error?.code === '23505' || normalizedMessage.includes('duplicate key')) {
+    return 'Ya habia un marcador guardado para este partido.'
+  }
+
+  if (error?.code === '42501' || normalizedMessage.includes('row-level security')) {
+    return 'El partido ya cerro o cambio de estado. Actualiza la lista antes de guardar otro marcador.'
+  }
+
+  return rawMessage || 'La prediccion no se pudo bloquear.'
 }
 
 function ResultsButton({ busy = false, children, disabled, icon: Icon, onClick, tone = 'primary' }) {
@@ -138,7 +171,7 @@ function MatchDayCard({ match, prediction, teamById }) {
       </div>
       <div className="results-match-score">
         <strong>{getOfficialScore(match)}</strong>
-        <span>{match.status}</span>
+        <span>{getMatchStatusLabel(match, teamById)}</span>
       </div>
       <div className="results-match-team is-away">
         <span className="results-match-crest-fallback" />
@@ -323,7 +356,8 @@ export default function WorldCupResultsPage() {
       await fetchSuite({ silent: true })
     } catch (error) {
       console.error('Unable to save match score prediction.', error)
-      setToast({ type: 'error', title: 'No se pudo guardar', message: error?.message || 'La prediccion no se pudo bloquear.' })
+      setToast({ type: 'error', title: 'No se pudo guardar', message: getSavePredictionErrorMessage(error) })
+      await fetchSuite({ silent: true })
     } finally {
       setSaving(false)
     }
