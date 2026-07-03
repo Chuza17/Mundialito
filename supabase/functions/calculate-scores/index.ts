@@ -217,13 +217,13 @@ Deno.serve(async (req: Request) => {
     const roundByMatchCode = new Map(knockoutMatches.map((row: any) => [row.match_code, row.round]))
     const realWinnerByMatchCode = new Map(
       realKnockoutRows
-        .filter((row: any) => row.winner_team_id)
+        .filter((row: any) => row.winner_team_id && FINISHED_MATCH_STATUSES.has(row.status))
         .map((row: any) => [row.match_code, row.winner_team_id])
     )
 
     const championTeamId =
       realWinnerByMatchCode.get('FIN_01') ??
-      realKnockoutRows.find((row: any) => row.round === 'final' && row.winner_team_id)?.winner_team_id ??
+      realKnockoutRows.find((row: any) => row.round === 'final' && row.winner_team_id && FINISHED_MATCH_STATUSES.has(row.status))?.winner_team_id ??
       null
 
     const groupPredictionsByUser = groupBy(groupPredictions, (row: any) => row.user_id)

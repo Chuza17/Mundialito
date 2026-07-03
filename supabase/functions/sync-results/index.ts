@@ -19,6 +19,7 @@ const FOOTBALL_DATA_COMPETITION_CODE = Deno.env.get('FOOTBALL_DATA_COMPETITION_C
 const WORLD_CUP_SEASON = Number(Deno.env.get('WORLD_CUP_SEASON') ?? '2026')
 const CALCULATE_SCORES_ON_SYNC = (Deno.env.get('CALCULATE_SCORES_ON_SYNC') ?? 'true') === 'true'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+const FINISHED_MATCH_STATUSES = new Set(['FINISHED', 'AWARDED'])
 
 async function fetchProviderMatches() {
   if (!FOOTBALL_DATA_API_KEY) {
@@ -74,11 +75,13 @@ async function triggerScoreCalculation(req: Request) {
 
 function mapProviderMatchToWorldCupRow(match: any) {
   const round = mapProviderStageToRound(match.stage) ?? (match.stage === 'GROUP_STAGE' ? 'group_stage' : null)
-  const winnerTeamId = getWinnerTeamIdFromProviderMatch(
-    match,
-    match.__homeTeamId,
-    match.__awayTeamId
-  )
+  const winnerTeamId = FINISHED_MATCH_STATUSES.has(match.status)
+    ? getWinnerTeamIdFromProviderMatch(
+        match,
+        match.__homeTeamId,
+        match.__awayTeamId
+      )
+    : null
   const score = getProviderMatchScoreBeforePenalties(match)
 
   return {
@@ -207,11 +210,13 @@ Deno.serve(async (req: Request) => {
       const apiMatch = round32Assignments.get(matchRow.match_code)
       if (!apiMatch) continue
 
-      const winnerTeamId = getWinnerTeamIdFromProviderMatch(
-        apiMatch,
-        apiMatch.__homeTeamId,
-        apiMatch.__awayTeamId
-      )
+      const winnerTeamId = FINISHED_MATCH_STATUSES.has(apiMatch.status)
+        ? getWinnerTeamIdFromProviderMatch(
+            apiMatch,
+            apiMatch.__homeTeamId,
+            apiMatch.__awayTeamId
+          )
+        : null
 
       if (winnerTeamId) winnerMap.set(matchRow.match_code, winnerTeamId)
 
@@ -245,11 +250,13 @@ Deno.serve(async (req: Request) => {
         const apiMatch = assignments.get(matchRow.match_code)
         if (!apiMatch) continue
 
-        const winnerTeamId = getWinnerTeamIdFromProviderMatch(
-          apiMatch,
-          apiMatch.__homeTeamId,
-          apiMatch.__awayTeamId
-        )
+        const winnerTeamId = FINISHED_MATCH_STATUSES.has(apiMatch.status)
+          ? getWinnerTeamIdFromProviderMatch(
+              apiMatch,
+              apiMatch.__homeTeamId,
+              apiMatch.__awayTeamId
+            )
+          : null
 
         if (winnerTeamId) winnerMap.set(matchRow.match_code, winnerTeamId)
 
